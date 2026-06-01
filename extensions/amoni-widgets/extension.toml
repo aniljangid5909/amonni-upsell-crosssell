@@ -1,0 +1,6 @@
+name = "Amoni Widgets"
+handle = "amoni-widgets"
+type = "theme"
+
+[[extensions.targeting]]
+target = "section"

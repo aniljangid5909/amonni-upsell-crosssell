@@ -1,11 +1,16 @@
-import {
-  Links,
-  Meta,
-  Outlet,
-  Scripts,
-  ScrollRestoration,
-} from "@remix-run/react";
-import "@shopify/polaris/build/esm/styles.css";
+import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "@remix-run/react";
+import { addDocumentResponseHeaders } from "./shopify.server";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  return new Response(null, {
+    headers: addDocumentResponseHeaders(request, new Headers()),
+  });
+};
+
+export const headers: HeadersFunction = ({ responseHeaders }) => {
+  return responseHeaders;
+};
 
 export default function App() {
   return (
