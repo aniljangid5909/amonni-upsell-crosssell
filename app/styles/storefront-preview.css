@@ -1,0 +1,1098 @@
+/* Amoni brand tokens */
+:root {
+  --amoni: #c8745a;
+  --amoni-strong: #b05e42;
+  --amoni-soft: #f7ede8;
+  --amoni-softer: #fdf5f2;
+}
+
+/* ─── Stage / Browser chrome ─── */
+.sp-stage {
+  position: relative;
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px 40px;
+  overflow: hidden;
+}
+
+.sp-browser-bar {
+  width: 100%;
+  max-width: 800px;
+  background: #ffffff;
+  border-radius: 10px 10px 0 0;
+  border: 1px solid #e0ddd9;
+  border-bottom: none;
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0;
+  flex-shrink: 0;
+}
+
+.sp-browser-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.sp-browser-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.sp-browser-url {
+  flex: 1;
+  background: #f5f3f0;
+  border-radius: 5px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: #666;
+  font-family: -apple-system, system-ui, sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-stage-content {
+  width: 100%;
+  max-width: 800px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 32px 16px;
+  background: #fff;
+  border: 1px solid #e0ddd9;
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  min-height: 360px;
+}
+
+/* ─── Tab bar ─── */
+.sp-tab-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e3e3e3;
+  background: #fff;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.sp-tab-group {
+  display: flex;
+  gap: 4px;
+  background: #f3f3f3;
+  border-radius: 8px;
+  padding: 3px;
+}
+
+.sp-tab-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #555;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.sp-tab-btn:hover {
+  background: rgba(0,0,0,0.05);
+}
+
+.sp-tab-btn.active {
+  background: #fff;
+  color: #111;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+}
+
+.sp-tab-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sp-style-select {
+  font-size: 13px;
+  padding: 5px 10px;
+  border: 1px solid #d0d0d0;
+  border-radius: 6px;
+  background: #fff;
+  color: #333;
+  cursor: pointer;
+}
+
+.sp-plus-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #1a1a1a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.3px;
+}
+
+/* ─── Feature cards grid ─── */
+.sp-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.sp-feature-card {
+  background: #fff;
+  border: 1px solid #e3e3e3;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.sp-feature-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--amoni-soft);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.sp-feature-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.sp-feature-desc {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.5;
+}
+
+/* ─── Shared widget primitives ─── */
+.w-btn-primary {
+  display: block;
+  width: 100%;
+  padding: 11px 16px;
+  background: var(--amoni);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+  line-height: 1.4;
+}
+
+.w-btn-primary:hover {
+  background: var(--amoni-strong);
+}
+
+.w-btn-ghost {
+  display: block;
+  width: 100%;
+  padding: 10px 16px;
+  background: transparent;
+  color: #888;
+  font-size: 13px;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+
+.w-btn-ghost:hover {
+  background: #f5f5f5;
+}
+
+/* ─── Post-purchase widget ─── */
+.ppw {
+  width: 380px;
+  max-width: 100%;
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ppw-header {
+  background: #f5f5f5;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #eee;
+}
+
+.ppw-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ppw-check {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.ppw-order-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: #333;
+}
+
+.ppw-wait-text {
+  font-size: 11px;
+  color: #888;
+}
+
+.ppw-body {
+  padding: 16px;
+}
+
+.ppw-brand-label {
+  font-size: 11px;
+  color: var(--amoni);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  margin-bottom: 12px;
+}
+
+/* Classic style */
+.ppw-classic-row {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.ppw-thumb-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ppw-badge {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  background: var(--amoni);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.ppw-badge-right {
+  left: auto;
+  right: -4px;
+}
+
+.ppw-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ppw-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111;
+  line-height: 1.3;
+  margin-bottom: 3px;
+}
+
+.ppw-variant {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 6px;
+}
+
+.ppw-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ppw-price-new {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111;
+}
+
+.ppw-price-old {
+  font-size: 13px;
+  color: #bbb;
+  text-decoration: line-through;
+}
+
+.ppw-savings {
+  font-size: 12px;
+  color: var(--amoni);
+  font-weight: 600;
+}
+
+/* Spotlight style */
+.ppw-spotlight-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.ppw-spotlight-price {
+  font-size: 22px;
+  font-weight: 800;
+  color: #111;
+}
+
+/* Compact style */
+.ppw-compact-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.ppw-compact-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ppw-compact-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ppw-compact-price {
+  font-size: 13px;
+  color: #555;
+  margin-top: 2px;
+}
+
+.ppw-divider {
+  height: 1px;
+  background: #f0f0f0;
+  margin: 12px 0;
+}
+
+.ppw-footer {
+  padding: 10px 16px;
+  background: #fafafa;
+  border-top: 1px solid #f0f0f0;
+  font-size: 11px;
+  color: #aaa;
+  text-align: center;
+}
+
+/* Accepted state */
+.ppw-accepted {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 24px 16px;
+  gap: 8px;
+}
+
+.ppw-accepted-check {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #22c55e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #fff;
+  margin-bottom: 6px;
+}
+
+.ppw-accepted-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111;
+}
+
+.ppw-accepted-sub {
+  font-size: 12px;
+  color: #888;
+  max-width: 260px;
+}
+
+/* ─── Cart Drawer Widget ─── */
+.cdw {
+  width: 340px;
+  max-width: 100%;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  overflow: hidden;
+}
+
+.cdw-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.cdw-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+}
+
+.cdw-close {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: none;
+  background: #f0f0f0;
+  color: #555;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cdw-items {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cdw-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cdw-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cdw-item-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: #111;
+}
+
+.cdw-item-price {
+  font-size: 13px;
+  color: #555;
+  margin-top: 2px;
+}
+
+.cdw-addon {
+  margin: 0 16px 14px;
+  border: 1.5px dashed var(--amoni);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--amoni-softer);
+}
+
+.cdw-addon-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--amoni);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.cdw-addon-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.cdw-addon-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cdw-addon-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cdw-addon-price {
+  font-size: 12px;
+  color: #888;
+  margin-top: 2px;
+}
+
+.cdw-add-btn {
+  padding: 7px 14px;
+  background: var(--amoni);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+
+.cdw-add-btn:hover {
+  background: var(--amoni-strong);
+}
+
+.cdw-add-btn.added {
+  background: #22c55e;
+}
+
+.cdw-checkout {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  background: #111;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+
+.cdw-checkout:hover {
+  background: #333;
+}
+
+/* ─── Product Page Widget ─── */
+.ppgw {
+  max-width: 460px;
+  width: 100%;
+  background: #fff;
+  border-radius: 14px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ppgw-header {
+  margin-bottom: 14px;
+}
+
+.ppgw-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111;
+  margin-bottom: 4px;
+}
+
+.ppgw-sub {
+  font-size: 12px;
+  color: #888;
+}
+
+.ppgw-thumbs-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.ppgw-plus {
+  font-size: 18px;
+  color: #ccc;
+  font-weight: 300;
+  flex-shrink: 0;
+}
+
+.ppgw-thumb-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ppgw-this-badge {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #111;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.ppgw-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.ppgw-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ppgw-checkbox {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 2px solid #d0d0d0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ppgw-checkbox.checked-black {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+  font-size: 11px;
+}
+
+.ppgw-checkbox.checked-amoni {
+  background: var(--amoni);
+  border-color: var(--amoni);
+  color: #fff;
+  font-size: 11px;
+}
+
+.ppgw-item-name {
+  flex: 1;
+  font-size: 13px;
+  color: #111;
+  min-width: 0;
+}
+
+.ppgw-item-name.dim {
+  color: #bbb;
+}
+
+.ppgw-item-prices {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.ppgw-item-price-new {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+}
+
+.ppgw-item-price-old {
+  font-size: 11px;
+  color: #bbb;
+  text-decoration: line-through;
+}
+
+.ppgw-total-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+  margin-bottom: 12px;
+}
+
+.ppgw-total-label {
+  font-size: 13px;
+  color: #555;
+}
+
+.ppgw-total-price {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111;
+}
+
+/* ─── Checkout Widget ─── */
+.ckw {
+  max-width: 760px;
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.ckw-header {
+  padding: 14px 24px;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ckw-wordmark {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  color: #111;
+  text-transform: uppercase;
+}
+
+.ckw-secure {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #555;
+}
+
+.ckw-body {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+}
+
+.ckw-left {
+  padding: 20px 24px;
+  border-right: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ckw-right {
+  padding: 20px 20px;
+  background: #f7f5f2;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ckw-express-row {
+  display: flex;
+  gap: 8px;
+}
+
+.ckw-express-btn {
+  flex: 1;
+  padding: 9px 8px;
+  border: none;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: default;
+  text-align: center;
+}
+
+.ckw-express-btn.shoppay {
+  background: #5a31f4;
+  color: #fff;
+}
+
+.ckw-express-btn.paypal {
+  background: #f7c948;
+  color: #111;
+}
+
+.ckw-express-btn.applepay {
+  background: #111;
+  color: #fff;
+}
+
+.ckw-or-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #bbb;
+}
+
+.ckw-or-divider::before,
+.ckw-or-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: #e5e5e5;
+}
+
+.ckw-field {
+  padding: 10px 12px;
+  border: 1px solid #e0e0e0;
+  border-radius: 7px;
+  font-size: 13px;
+  color: #333;
+  background: #fafafa;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ckw-field-label {
+  font-size: 11px;
+  color: #aaa;
+  display: block;
+  margin-bottom: 1px;
+}
+
+.ckw-field-value {
+  font-size: 13px;
+  color: #333;
+}
+
+.ckw-pay-btn {
+  display: block;
+  width: 100%;
+  padding: 13px;
+  background: #111;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: center;
+}
+
+/* Right column */
+.ckw-order-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ckw-item-qty-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.ckw-item-qty-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #555;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ckw-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ckw-item-name {
+  font-size: 12px;
+  font-weight: 500;
+  color: #111;
+}
+
+.ckw-item-variant {
+  font-size: 11px;
+  color: #999;
+}
+
+.ckw-item-price {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111;
+  flex-shrink: 0;
+}
+
+.ckw-crosssell {
+  border: 1.5px solid var(--amoni);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--amoni-softer);
+}
+
+.ckw-crosssell-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  color: var(--amoni);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.ckw-crosssell-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ckw-crosssell-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ckw-crosssell-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #111;
+}
+
+.ckw-crosssell-prices {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.ckw-crosssell-price-new {
+  font-size: 12px;
+  font-weight: 700;
+  color: #111;
+}
+
+.ckw-crosssell-price-old {
+  font-size: 11px;
+  color: #bbb;
+  text-decoration: line-through;
+}
+
+.ckw-crosssell-badge {
+  background: var(--amoni);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.ckw-add-btn {
+  display: block;
+  width: 100%;
+  padding: 9px;
+  background: var(--amoni);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s;
+}
+
+.ckw-add-btn:hover {
+  background: var(--amoni-strong);
+}
+
+.ckw-add-btn.added {
+  background: #22c55e;
+}
+
+.ckw-discount-row {
+  display: flex;
+  gap: 6px;
+}
+
+.ckw-discount-input {
+  flex: 1;
+  padding: 8px 10px;
+  border: 1px solid #ddd;
+  border-radius: 7px;
+  font-size: 12px;
+  color: #333;
+  background: #fff;
+}
+
+.ckw-discount-apply {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 7px;
+  background: #fff;
+  font-size: 12px;
+  color: #555;
+  cursor: pointer;
+}
+
+.ckw-totals {
+  font-size: 12px;
+  color: #555;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ckw-totals-row {
+  display: flex;
+  justify-content: space-between;
+}
+
+.ckw-totals-divider {
+  height: 1px;
+  background: #e5e5e5;
+  margin: 4px 0;
+}
+
+.ckw-totals-total {
+  font-size: 14px;
+  font-weight: 700;
+  color: #111;
+}
+
+/* Thumb component */
+.thumb {
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  color: rgba(0,0,0,0.45);
+  flex-shrink: 0;
+  letter-spacing: 0.5px;
+}
