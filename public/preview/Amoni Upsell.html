@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Amoni Upsell — Shopify App</title>
+<link rel="stylesheet" href="theme.css" />
+<style>
+  #root { height: 100vh; }
+  .row-hover { transition: background .1s; }
+  .row-hover:hover { background: var(--surface-hover); }
+  select option { background: var(--surface); color: var(--text); }
+  /* loading splash */
+  #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; background: var(--bg); z-index: 9999; transition: opacity .3s; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="boot"><div style="display:flex;align-items:center;gap:10px;color:var(--text-sub);font-size:13px">
+  <div style="width:22px;height:22px;border-radius:6px;background:var(--amoni)"></div> Loading Amoni Upsell…
+</div></div>
+
+<template id="__bundler_thumbnail">
+  <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+    <rect width="100" height="100" rx="20" fill="#c8745a"/>
+    <path d="M30 68 L50 34 L70 68" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M40 68 L50 50 L60 68" fill="none" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" opacity="0.5"/>
+  </svg>
+</template>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="data.jsx"></script>
+<script type="text/babel" src="icons.jsx"></script>
+<script type="text/babel" src="components-core.jsx"></script>
+<script type="text/babel" src="components-data.jsx"></script>
+<script type="text/babel" src="charts.jsx"></script>
+<script type="text/babel" src="shell.jsx"></script>
+<script type="text/babel" src="screen-overview.jsx"></script>
+<script type="text/babel" src="screen-funnels.jsx"></script>
+<script type="text/babel" src="screen-builder.jsx"></script>
+<script type="text/babel" src="screen-analytics.jsx"></script>
+<script type="text/babel" src="screen-abtest.jsx"></script>
+<script type="text/babel" src="screen-ai.jsx"></script>
+<script type="text/babel" src="screen-billing.jsx"></script>
+<script type="text/babel" src="screen-storefront.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="app.jsx"></script>
+<script>
+  // hide splash once React mounts
+  const obs = new MutationObserver(() => {
+    if (document.querySelector('#root').children.length) {
+      const b = document.getElementById('boot');
+      if (b) { b.style.opacity = 0; setTimeout(() => b.remove(), 320); }
+      obs.disconnect();
+    }
+  });
+  obs.observe(document.getElementById('root'), { childList: true });
+</script>
+</body>
+</html>

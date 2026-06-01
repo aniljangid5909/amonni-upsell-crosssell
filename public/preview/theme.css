@@ -1,0 +1,158 @@
+/* ============================================================
+   Amoni Upsell — Polaris-faithful theme with Amoni personality
+   Light + dark token sets. Warm clay accent for brand moments.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700;800&display=swap');
+
+:root {
+  /* Type */
+  --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-brand: "Hanken Grotesk", var(--font-ui);
+
+  /* Amoni accent — warm clay (beauty/skincare appropriate) */
+  --amoni: oklch(0.64 0.12 35);
+  --amoni-strong: oklch(0.56 0.13 33);
+  --amoni-soft: oklch(0.94 0.03 40);
+  --amoni-softer: oklch(0.97 0.018 45);
+
+  /* radii / shadow */
+  --r-sm: 6px;
+  --r: 8px;
+  --r-lg: 12px;
+  --r-xl: 16px;
+  --shadow-card: 0 1px 0 rgba(26,26,26,0.07);
+  --shadow-pop: 0 4px 12px rgba(26,26,26,0.12), 0 0 0 1px rgba(26,26,26,0.06);
+  --shadow-btn: 0 1px 0 rgba(0,0,0,0.08), inset 0 -1px 0 rgba(0,0,0,0.20);
+}
+
+/* ---------- LIGHT (default) ---------- */
+:root, .theme-light {
+  --bg: #f1f1f1;
+  --bg-inset: #ebebeb;
+  --surface: #ffffff;
+  --surface-hover: #fafafa;
+  --surface-sub: #f7f7f7;
+  --surface-selected: var(--amoni-softer);
+  --border: #e3e3e3;
+  --border-strong: #d2d2d2;
+  --border-hover: #c9c9c9;
+  --text: #303030;
+  --text-strong: #1a1a1a;
+  --text-sub: #616161;
+  --text-disabled: #8a8a8a;
+  --icon: #4a4a4a;
+
+  --btn-primary-bg: #1a1a1a;
+  --btn-primary-bg-hover: #000000;
+  --btn-primary-text: #ffffff;
+  --btn-secondary-bg: #ffffff;
+  --btn-secondary-border: #d2d2d2;
+  --btn-secondary-text: #303030;
+
+  --nav-bg: #ebebeb;
+  --nav-item-hover: #e0e0e0;
+  --nav-item-active: #ffffff;
+  --topbar-bg: #1a1a1a;
+  --topbar-text: #e3e3e3;
+  --topbar-search: #2e2e2e;
+
+  /* badges */
+  --badge-success-bg: #d3f5e1; --badge-success-text: #0c5132;
+  --badge-attention-bg: #ffe6a8; --badge-attention-text: #5e4200;
+  --badge-info-bg: #d6eaff; --badge-info-text: #00407a;
+  --badge-critical-bg: #ffd6d6; --badge-critical-text: #8e0b21;
+  --badge-neutral-bg: #ebebeb; --badge-neutral-text: #4a4a4a;
+
+  --success: #008060;
+  --critical: #d72c0d;
+  --chart-grid: #ececec;
+  --chart-fill: color-mix(in oklch, var(--amoni) 16%, transparent);
+}
+
+/* ---------- DARK ---------- */
+.theme-dark {
+  --bg: #1a1a1a;
+  --bg-inset: #141414;
+  --surface: #242424;
+  --surface-hover: #2c2c2c;
+  --surface-sub: #1f1f1f;
+  --surface-selected: color-mix(in oklch, var(--amoni) 22%, #242424);
+  --border: #3a3a3a;
+  --border-strong: #4a4a4a;
+  --border-hover: #5a5a5a;
+  --text: #e3e3e3;
+  --text-strong: #f6f6f6;
+  --text-sub: #a8a8a8;
+  --text-disabled: #6e6e6e;
+  --icon: #c4c4c4;
+
+  --btn-primary-bg: #f6f6f6;
+  --btn-primary-bg-hover: #ffffff;
+  --btn-primary-text: #1a1a1a;
+  --btn-secondary-bg: #2e2e2e;
+  --btn-secondary-border: #4a4a4a;
+  --btn-secondary-text: #e3e3e3;
+
+  --nav-bg: #141414;
+  --nav-item-hover: #242424;
+  --nav-item-active: #2e2e2e;
+  --topbar-bg: #0d0d0d;
+  --topbar-text: #d4d4d4;
+  --topbar-search: #242424;
+
+  --badge-success-bg: #16352a; --badge-success-text: #8ae0b8;
+  --badge-attention-bg: #3d3115; --badge-attention-text: #f5d488;
+  --badge-info-bg: #16304d; --badge-info-text: #9cc8ff;
+  --badge-critical-bg: #45191b; --badge-critical-text: #ffb3b3;
+  --badge-neutral-bg: #333333; --badge-neutral-text: #bdbdbd;
+
+  --success: #2bb673;
+  --critical: #ff6b5e;
+  --amoni-soft: color-mix(in oklch, var(--amoni) 26%, #242424);
+  --amoni-softer: color-mix(in oklch, var(--amoni) 14%, #242424);
+  --chart-grid: #333333;
+  --chart-fill: color-mix(in oklch, var(--amoni) 24%, transparent);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: var(--font-ui);
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  font-size: 14px;
+  line-height: 1.45;
+}
+button { font-family: inherit; }
+::selection { background: color-mix(in oklch, var(--amoni) 30%, transparent); }
+
+/* scrollbars */
+.scroll-thin::-webkit-scrollbar { width: 10px; height: 10px; }
+.scroll-thin::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 20px; border: 3px solid var(--surface); }
+.scroll-thin::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- Typographic helpers ---------- */
+.t-display { font-family: var(--font-brand); font-weight: 700; letter-spacing: -0.02em; color: var(--text-strong); }
+.t-num { font-family: var(--font-brand); font-weight: 700; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; color: var(--text-strong); }
+.t-h1 { font-size: 20px; font-weight: 700; color: var(--text-strong); letter-spacing: -0.01em; margin: 0; }
+.t-h2 { font-size: 14px; font-weight: 650; color: var(--text-strong); margin: 0; }
+.t-body { font-size: 13px; color: var(--text); }
+.t-sub { font-size: 13px; color: var(--text-sub); }
+.t-cap { font-size: 12px; color: var(--text-sub); }
+.t-strong { font-weight: 600; color: var(--text-strong); }
+
+/* ---------- Animations ---------- */
+@keyframes amoni-fade { from { transform: translateY(7px); } to { transform: none; } }
+@keyframes amoni-pop { from { transform: scale(0.97); } to { transform: none; } }
+@keyframes amoni-slide-up { from { transform: translateY(100%); } to { transform: translateY(0); } }
+@keyframes amoni-slide-right { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes amoni-shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+@keyframes amoni-draw { from { stroke-dashoffset: var(--dash); } to { stroke-dashoffset: 0; } }
+.anim-fade { animation: amoni-fade 0.32s ease; }
+.anim-pop { animation: amoni-pop 0.22s ease; }
+
+/* focus ring */
+.focusable:focus-visible { outline: 2px solid var(--amoni); outline-offset: 1px; }
