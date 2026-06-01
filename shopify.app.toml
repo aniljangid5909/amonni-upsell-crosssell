@@ -1,0 +1,20 @@
+name = "amonni-upsell-crosssell"
+client_id = ""
+application_url = "https://TUNNEL_URL"
+embedded = true
+
+[access_scopes]
+scopes = "read_products,read_orders,write_products"
+
+[auth]
+redirect_urls = [
+  "https://TUNNEL_URL/auth/callback",
+  "https://TUNNEL_URL/auth/shopify/callback",
+  "https://TUNNEL_URL/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2025-01"
+
+[pos]
+embedded = false
