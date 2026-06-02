@@ -4,6 +4,7 @@
   "scripts": {
     "build": "remix vite:build",
     "dev": "shopify app dev",
+    "vite:dev": "remix vite:dev",
     "start": "remix-serve ./build/server/index.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
