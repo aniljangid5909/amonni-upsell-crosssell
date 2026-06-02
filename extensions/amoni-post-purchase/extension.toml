@@ -1,0 +1,7 @@
+name = "Amoni Post Purchase"
+handle = "amoni-post-purchase"
+type = "post_purchase"
+
+[[extensions.metafields]]
+namespace = "amoni"
+key = "offer"

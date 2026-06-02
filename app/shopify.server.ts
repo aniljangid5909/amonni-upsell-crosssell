@@ -4,21 +4,24 @@ import {
   AppDistribution,
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
+import { PrismaSessionStorage } from "@shopify/shopify-app-session-storage-prisma";
+import { PrismaClient } from "@prisma/client";
+
+const prisma = new PrismaClient();
+export { prisma };
 
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY!,
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
   apiVersion: ApiVersion.January25,
   scopes: process.env.SCOPES?.split(","),
-  appUrl: process.env.SHOPIFY_APP_URL || process.env.HOST || "",
+  appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
+  sessionStorage: new PrismaSessionStorage(prisma),
   distribution: AppDistribution.AppStore,
   future: {
     unstable_newEmbeddedAuthStrategy: true,
   },
-  ...(process.env.SHOP_CUSTOM_DOMAIN
-    ? { customShopDomains: [process.env.SHOP_CUSTOM_DOMAIN] }
-    : {}),
 });
 
 export default shopify;
