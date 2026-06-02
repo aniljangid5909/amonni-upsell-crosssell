@@ -3,8 +3,19 @@ client_id = ""
 application_url = "https://TUNNEL_URL"
 embedded = true
 
+[build]
+  automatically_update_urls_on_dev = true
+  dev_store_url = "amoni-apps.myshopify.com"
+
+[[web]]
+  previewable = true
+
+  [web.commands]
+    dev = "npm exec -- remix vite:dev"
+    build = "npm exec -- remix vite:build"
+
 [access_scopes]
-scopes = "read_products,read_orders,write_products"
+scopes = "read_products,read_orders,write_products,write_payment_sessions"
 
 [auth]
 redirect_urls = [
