@@ -1,0 +1,27 @@
+{% comment %} Amoni Cart Offer Widget {% endcomment %}
+<div id="amoni-cart-offer"
+  data-shop="{{ shop.permanent_domain }}"
+  data-cart-items="{{ cart.items | map: 'product_id' | join: ',' }}"
+  data-app-url="{{ block.settings.app_url }}"
+  style="display:none; margin: 12px 0; border: 1.5px dashed #c8745a; border-radius: 12px; padding: 14px; background: #fdf5f2;">
+  <div style="font-size:10.5px; font-weight:700; color:#b05e42; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:10px;">
+    Complete your routine
+  </div>
+  <div id="amoni-cart-offer-content"></div>
+</div>
+<script src="{{ 'cart-widget.js' | asset_url }}" defer></script>
+
+{% schema %}
+{
+  "name": "Amoni Cart Offer",
+  "target": "section",
+  "settings": [
+    {
+      "type": "text",
+      "id": "app_url",
+      "label": "App URL",
+      "default": ""
+    }
+  ]
+}
+{% endschema %}
