@@ -1,20 +1,20 @@
-name = "amonni-upsell-crosssell"
-client_id = ""
-application_url = "https://TUNNEL_URL"
+# Learn more about configuring your app at https://shopify.dev/docs/apps/tools/cli/configuration
+
+client_id = "c5e0708b11f5d83418065b8a93d598f6"
+application_url = "https://shopify.dev/apps/default-app-home"
 embedded = true
-
-[access_scopes]
-scopes = "read_products,read_orders,write_products"
-
-[auth]
-redirect_urls = [
-  "https://TUNNEL_URL/auth/callback",
-  "https://TUNNEL_URL/auth/shopify/callback",
-  "https://TUNNEL_URL/api/auth/callback"
-]
+name = "Amoni Upsell and Crosssell"
 
 [webhooks]
-api_version = "2025-01"
+api_version = "2026-07"
 
-[pos]
-embedded = false
+[access_scopes]
+# Learn more at https://shopify.dev/docs/apps/tools/cli/configuration#access_scopes
+scopes = "read_orders,read_products,write_products"
+
+[auth]
+redirect_urls = [ "https://shopify.dev/apps/default-app-home/api/auth" ]
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
