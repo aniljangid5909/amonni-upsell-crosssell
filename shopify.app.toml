@@ -8,13 +8,6 @@ embedded = true
   dev_store_url = "amoni-apps.myshopify.com"
   include_config_on_deploy = true
 
-[[web]]
-  previewable = true
-
-  [web.commands]
-    dev = "npm exec -- remix vite:dev"
-    build = "npm exec -- remix vite:build"
-
 [access_scopes]
 scopes = "read_orders,read_products,write_products"
 
