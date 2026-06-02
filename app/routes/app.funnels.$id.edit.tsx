@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useNavigation, Form } from "@remix-run/react";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import {
   Page,
   Layout,
@@ -12,6 +12,13 @@ import {
   PageActions,
   FormLayout,
   Text,
+  Button,
+  InlineStack,
+  Thumbnail,
+  BlockStack,
+  Badge,
+  Divider,
+  Banner,
 } from "@shopify/polaris";
 import { authenticate, prisma } from "../shopify.server";
 
@@ -23,9 +30,7 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     where: { id: id as string, shop: session.shop },
   });
 
-  if (!funnel) {
-    throw new Response("Not found", { status: 404 });
-  }
+  if (!funnel) throw new Response("Not found", { status: 404 });
 
   return json({ funnel });
 };
@@ -37,9 +42,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const _action = formData.get("_action") as string;
 
   if (_action === "delete") {
-    await prisma.funnel.delete({
-      where: { id: id as string, shop: session.shop },
-    });
+    await prisma.funnel.delete({ where: { id: id as string, shop: session.shop } });
     return redirect("/app/funnels");
   }
 
@@ -49,12 +52,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const triggerProductIdsRaw = formData.get("triggerProductIds") as string;
   const offerProductId = formData.get("offerProductId") as string;
   const discountType = formData.get("discountType") as string;
-  const discountValue = parseFloat(
-    (formData.get("discountValue") as string) || "0"
-  );
-  const minCartValue = parseFloat(
-    (formData.get("minCartValue") as string) || "0"
-  );
+  const discountValue = parseFloat((formData.get("discountValue") as string) || "0");
+  const minCartValue = parseFloat((formData.get("minCartValue") as string) || "0");
   const skipSubscribed = formData.get("skipSubscribed") === "on";
 
   const triggerProductIds = triggerProductIdsRaw
@@ -63,36 +62,17 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   await prisma.funnel.update({
     where: { id: id as string, shop: session.shop },
-    data: {
-      name,
-      placement,
-      offerType,
-      triggerProductIds,
-      offerProductId: offerProductId || "",
-      discountType,
-      discountValue,
-      minCartValue,
-      skipSubscribed,
-    },
+    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", discountType, discountValue, minCartValue, skipSubscribed },
   });
 
   return redirect("/app/funnels");
 };
 
 const placementOptions = [
-  {
-    label: "Post-purchase (between order confirmation and thank-you)",
-    value: "post-purchase",
-  },
-  { label: "Cart drawer (when trigger product is in cart)", value: "cart" },
-  {
-    label: "Product page (frequently bought together)",
-    value: "product",
-  },
-  {
-    label: "Checkout block (Shopify Plus only)",
-    value: "checkout",
-  },
+  { label: "Cart page / Cart drawer", value: "cart" },
+  { label: "Product page (frequently bought together)", value: "product" },
+  { label: "Post-purchase (between order and thank-you)", value: "post-purchase" },
+  { label: "Checkout block (Shopify Plus only)", value: "checkout" },
 ];
 
 const offerTypeOptions = [
@@ -107,29 +87,74 @@ const discountTypeOptions = [
   { label: "Fixed amount off", value: "fixed" },
 ];
 
+type PickedProduct = { id: string; title: string; imageUrl: string };
+
+function extractNumericId(gid: string) {
+  return gid.split("/").pop() || gid;
+}
+
+function numericToGid(id: string) {
+  if (id.startsWith("gid://")) return id;
+  return `gid://shopify/Product/${id}`;
+}
+
 export default function EditFunnelPage() {
   const { funnel } = useLoaderData<typeof loader>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
   const [discountType, setDiscountType] = useState(funnel.discountType);
-  const [discountValue, setDiscountValue] = useState(
-    funnel.discountValue ? String(funnel.discountValue) : ""
-  );
-  const [minCartValue, setMinCartValue] = useState(
-    String(funnel.minCartValue)
-  );
+  const [discountValue, setDiscountValue] = useState(funnel.discountValue ? String(funnel.discountValue) : "");
+  const [minCartValue, setMinCartValue] = useState(String(funnel.minCartValue));
   const [skipSubscribed, setSkipSubscribed] = useState(funnel.skipSubscribed);
   const [name, setName] = useState(funnel.name);
   const [placement, setPlacement] = useState(funnel.placement);
   const [offerType, setOfferType] = useState(funnel.offerType);
-  const [triggerProductIds, setTriggerProductIds] = useState(
-    funnel.triggerProductIds.join(", ")
+
+  const [triggerProducts, setTriggerProducts] = useState<PickedProduct[]>(
+    funnel.triggerProductIds.map((id) => ({ id: numericToGid(id), title: `Product ${id}`, imageUrl: "" }))
   );
-  const [offerProductId, setOfferProductId] = useState(funnel.offerProductId);
+  const [offerProduct, setOfferProduct] = useState<PickedProduct | null>(
+    funnel.offerProductId
+      ? { id: numericToGid(funnel.offerProductId), title: `Product ${funnel.offerProductId}`, imageUrl: "" }
+      : null
+  );
+
+  const openTriggerPicker = useCallback(async () => {
+    const selected = await (window as any).shopify.resourcePicker({
+      type: "product",
+      multiple: true,
+      selectionIds: triggerProducts.map((p) => ({ id: p.id })),
+    });
+    if (selected) {
+      setTriggerProducts(selected.map((p: any) => ({
+        id: p.id,
+        title: p.title,
+        imageUrl: p.images?.[0]?.originalSrc || "",
+      })));
+    }
+  }, [triggerProducts]);
+
+  const openOfferPicker = useCallback(async () => {
+    const selected = await (window as any).shopify.resourcePicker({
+      type: "product",
+      multiple: false,
+      selectionIds: offerProduct ? [{ id: offerProduct.id }] : [],
+    });
+    if (selected?.[0]) {
+      const p = selected[0];
+      setOfferProduct({ id: p.id, title: p.title, imageUrl: p.images?.[0]?.originalSrc || "" });
+    }
+  }, [offerProduct]);
+
+  const removeTrigger = (id: string) =>
+    setTriggerProducts((prev) => prev.filter((p) => p.id !== id));
+
+  const triggerProductIds = triggerProducts.map((p) => extractNumericId(p.id)).join(",");
+  const offerProductId = offerProduct ? extractNumericId(offerProduct.id) : "";
 
   const handleDelete = () => {
-    if (confirm("Are you sure you want to delete this funnel? This cannot be undone.")) {
+    if (confirm("Delete this funnel? This cannot be undone.")) {
       const form = document.createElement("form");
       form.method = "post";
       const input = document.createElement("input");
@@ -142,162 +167,125 @@ export default function EditFunnelPage() {
   };
 
   return (
-    <Page
-      backAction={{ content: "Funnels", url: "/app/funnels" }}
-      title="Edit funnel"
-    >
+    <Page backAction={{ content: "Funnels", url: "/app/funnels" }} title="Edit funnel">
       <Form method="post">
+        <input type="hidden" name="triggerProductIds" value={triggerProductIds} />
+        <input type="hidden" name="offerProductId" value={offerProductId} />
+
         <Layout>
           <Layout.Section>
             <Card>
-              <Text variant="headingMd" as="h2">
-                Funnel details
-              </Text>
-              <div style={{ marginTop: "16px" }}>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">Funnel details</Text>
                 <FormLayout>
-                  <TextField
-                    label="Funnel name"
-                    name="name"
-                    value={name}
-                    onChange={setName}
-                    placeholder="e.g. Serum → SPF cross-sell"
-                    autoComplete="off"
-                    requiredIndicator
-                  />
-                  <Select
-                    label="Placement"
-                    name="placement"
-                    options={placementOptions}
-                    value={placement}
-                    onChange={setPlacement}
-                  />
-                  <Select
-                    label="Offer type"
-                    name="offerType"
-                    options={offerTypeOptions}
-                    value={offerType}
-                    onChange={setOfferType}
-                  />
+                  <TextField label="Funnel name" name="name" value={name} onChange={setName} placeholder="e.g. Serum → SPF cross-sell" autoComplete="off" requiredIndicator />
+                  <Select label="Placement" name="placement" options={placementOptions} value={placement} onChange={setPlacement} helpText="Where this offer appears in the customer journey" />
+                  <Select label="Offer type" name="offerType" options={offerTypeOptions} value={offerType} onChange={setOfferType} />
                 </FormLayout>
-              </div>
+              </BlockStack>
             </Card>
           </Layout.Section>
 
           <Layout.Section>
             <Card>
-              <Text variant="headingMd" as="h2">
-                Trigger &amp; offer products
-              </Text>
-              <div style={{ marginTop: "16px" }}>
-                <FormLayout>
-                  <TextField
-                    label="Trigger product IDs"
-                    name="triggerProductIds"
-                    value={triggerProductIds}
-                    onChange={setTriggerProductIds}
-                    helpText="Comma-separated Shopify product IDs. This funnel fires when any of these are in the order/cart."
-                    placeholder="8432156..., 8432157..."
-                    autoComplete="off"
-                  />
-                  <TextField
-                    label="Offer product ID"
-                    name="offerProductId"
-                    value={offerProductId}
-                    onChange={setOfferProductId}
-                    helpText="The product ID to offer."
-                    placeholder="8432158..."
-                    autoComplete="off"
-                  />
-                </FormLayout>
-              </div>
+              <BlockStack gap="400">
+                <BlockStack gap="100">
+                  <Text variant="headingMd" as="h2">Trigger products</Text>
+                  <Text variant="bodySm" tone="subdued" as="p">Show this offer when any of these products are in the cart / order.</Text>
+                </BlockStack>
+                {triggerProducts.length > 0 && (
+                  <BlockStack gap="200">
+                    {triggerProducts.map((p) => (
+                      <InlineStack key={p.id} gap="300" align="space-between" blockAlign="center">
+                        <InlineStack gap="300" blockAlign="center">
+                          <Thumbnail
+                            source={p.imageUrl || "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_small.png"}
+                            alt={p.title}
+                            size="small"
+                          />
+                          <Text as="span" variant="bodyMd">{p.title}</Text>
+                        </InlineStack>
+                        <Button size="slim" tone="critical" variant="plain" onClick={() => removeTrigger(p.id)}>Remove</Button>
+                      </InlineStack>
+                    ))}
+                    <Divider />
+                  </BlockStack>
+                )}
+                <Button onClick={openTriggerPicker} variant="secondary">
+                  {triggerProducts.length === 0 ? "Select trigger products" : "Add more products"}
+                </Button>
+                {triggerProducts.length === 0 && (
+                  <Banner tone="warning">No trigger products selected — this funnel will match ALL products.</Banner>
+                )}
+              </BlockStack>
             </Card>
           </Layout.Section>
 
           <Layout.Section>
             <Card>
-              <Text variant="headingMd" as="h2">
-                Discount
-              </Text>
-              <div style={{ marginTop: "16px" }}>
+              <BlockStack gap="400">
+                <BlockStack gap="100">
+                  <Text variant="headingMd" as="h2">Offer product</Text>
+                  <Text variant="bodySm" tone="subdued" as="p">The product you want to recommend to the customer.</Text>
+                </BlockStack>
+                {offerProduct && (
+                  <InlineStack gap="300" align="space-between" blockAlign="center">
+                    <InlineStack gap="300" blockAlign="center">
+                      <Thumbnail
+                        source={offerProduct.imageUrl || "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_small.png"}
+                        alt={offerProduct.title}
+                        size="small"
+                      />
+                      <BlockStack gap="050">
+                        <Text as="span" variant="bodyMd" fontWeight="semibold">{offerProduct.title}</Text>
+                        <Badge tone="success">Offer product</Badge>
+                      </BlockStack>
+                    </InlineStack>
+                    <Button size="slim" variant="plain" onClick={() => setOfferProduct(null)}>Change</Button>
+                  </InlineStack>
+                )}
+                {!offerProduct && (
+                  <Button onClick={openOfferPicker} variant="secondary">Select offer product</Button>
+                )}
+              </BlockStack>
+            </Card>
+          </Layout.Section>
+
+          <Layout.Section>
+            <Card>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">Discount</Text>
                 <FormLayout>
-                  <Select
-                    label="Discount type"
-                    name="discountType"
-                    options={discountTypeOptions}
-                    value={discountType}
-                    onChange={setDiscountType}
-                  />
+                  <Select label="Discount type" name="discountType" options={discountTypeOptions} value={discountType} onChange={setDiscountType} />
                   {discountType === "percent" && (
-                    <TextField
-                      label="Discount percentage"
-                      name="discountValue"
-                      type="number"
-                      value={discountValue}
-                      onChange={setDiscountValue}
-                      suffix="%"
-                      autoComplete="off"
-                    />
+                    <TextField label="Discount percentage" name="discountValue" type="number" value={discountValue} onChange={setDiscountValue} suffix="%" autoComplete="off" />
                   )}
                   {discountType === "fixed" && (
-                    <TextField
-                      label="Discount amount"
-                      name="discountValue"
-                      type="number"
-                      value={discountValue}
-                      onChange={setDiscountValue}
-                      prefix="$"
-                      autoComplete="off"
-                    />
+                    <TextField label="Discount amount" name="discountValue" type="number" value={discountValue} onChange={setDiscountValue} prefix="$" autoComplete="off" />
                   )}
                 </FormLayout>
-              </div>
+              </BlockStack>
             </Card>
           </Layout.Section>
 
           <Layout.Section>
             <Card>
-              <Text variant="headingMd" as="h2">
-                Display conditions
-              </Text>
-              <div style={{ marginTop: "16px" }}>
+              <BlockStack gap="400">
+                <Text variant="headingMd" as="h2">Display conditions</Text>
                 <FormLayout>
-                  <TextField
-                    label="Minimum cart value"
-                    name="minCartValue"
-                    type="number"
-                    value={minCartValue}
-                    onChange={setMinCartValue}
-                    prefix="$"
-                    helpText="Only show this funnel if cart value is above this amount. Leave 0 to always show."
-                    autoComplete="off"
-                  />
-                  <Checkbox
-                    label="Skip customers who already subscribe to the offered product"
-                    name="skipSubscribed"
-                    checked={skipSubscribed}
-                    onChange={setSkipSubscribed}
-                  />
+                  <TextField label="Minimum cart value" name="minCartValue" type="number" value={minCartValue} onChange={setMinCartValue} prefix="$" helpText="Only show this offer if cart total exceeds this amount. Use 0 to always show." autoComplete="off" />
+                  <Checkbox label="Skip customers who already purchased the offered product" name="skipSubscribed" checked={skipSubscribed} onChange={setSkipSubscribed} />
                 </FormLayout>
-              </div>
+              </BlockStack>
             </Card>
           </Layout.Section>
         </Layout>
+
         <PageActions
-          primaryAction={{
-            content: "Save funnel",
-            submit: true,
-            loading: isSubmitting,
-          }}
+          primaryAction={{ content: "Save funnel", submit: true, loading: isSubmitting }}
           secondaryActions={[
-            {
-              content: "Cancel",
-              url: "/app/funnels",
-            },
-            {
-              content: "Delete funnel",
-              destructive: true,
-              onAction: handleDelete,
-            },
+            { content: "Cancel", url: "/app/funnels" },
+            { content: "Delete funnel", destructive: true, onAction: handleDelete },
           ]}
         />
       </Form>
