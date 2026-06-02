@@ -1,11 +1,12 @@
-name = "amonni-upsell-crosssell"
-client_id = ""
-application_url = "https://TUNNEL_URL"
+name = "Amoni Upsell"
+client_id = "e0f1c45c8adddef7b938f848366269b9"
+application_url = "https://residents-hill-drops-suspected.trycloudflare.com"
 embedded = true
 
 [build]
   automatically_update_urls_on_dev = true
   dev_store_url = "amoni-apps.myshopify.com"
+  include_config_on_deploy = true
 
 [[web]]
   previewable = true
@@ -15,17 +16,17 @@ embedded = true
     build = "npm exec -- remix vite:build"
 
 [access_scopes]
-scopes = "read_products,read_orders,write_products"
+scopes = "read_orders,read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://TUNNEL_URL/auth/callback",
-  "https://TUNNEL_URL/auth/shopify/callback",
-  "https://TUNNEL_URL/api/auth/callback"
+  "https://residents-hill-drops-suspected.trycloudflare.com/auth/callback",
+  "https://residents-hill-drops-suspected.trycloudflare.com/auth/shopify/callback",
+  "https://residents-hill-drops-suspected.trycloudflare.com/api/auth/callback"
 ]
 
 [webhooks]
-api_version = "2025-01"
+api_version = "2026-07"
 
 [pos]
 embedded = false

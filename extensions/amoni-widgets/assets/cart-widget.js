@@ -6,7 +6,7 @@
   var cartItems = (el.dataset.cartItems || '').split(',').filter(Boolean);
   if (!cartItems.length) return;
 
-  var APP_URL = window.AMONI_APP_URL || '';
+  var APP_URL = el.dataset.appUrl || '';
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=cart&productIds=' + cartItems.join(','))
     .then(function (r) { return r.json(); })
@@ -38,7 +38,7 @@
                 : '') +
             '</div>' +
           '</div>' +
-          '<button onclick="amoniAddToCart(\'' + funnel.offerVariantId + '\', this, \'' + funnel.id + '\', \'' + shop + '\')"' +
+          '<button onclick="amoniAddToCart(\'' + funnel.offerVariantId + '\', this, \'' + funnel.id + '\', \'' + shop + '\', \'' + APP_URL + '\')"' +
             ' style="padding:8px 12px; border-radius:8px; border:none; background:#c8745a; color:#fff; font-weight:700; font-size:12.5px; cursor:pointer; white-space:nowrap; font-family:inherit;">' +
             'Add' +
           '</button>' +
@@ -55,7 +55,7 @@
     })
     .catch(function () {});
 
-  window.amoniAddToCart = function (variantId, btn, funnelId, shop) {
+  window.amoniAddToCart = function (variantId, btn, funnelId, shop, appUrl) {
     btn.textContent = '✓';
     btn.style.background = '#0c8a4f';
     btn.disabled = true;
@@ -66,8 +66,7 @@
       body: JSON.stringify({ id: variantId, quantity: 1 }),
     })
       .then(function () {
-        var APP_URL = window.AMONI_APP_URL || '';
-        fetch(APP_URL + '/api/events', {
+        fetch(appUrl + '/api/events', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ funnelId: funnelId, shop: shop, eventType: 'accept' }),

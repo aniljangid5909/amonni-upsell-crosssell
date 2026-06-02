@@ -4,7 +4,7 @@
 
   var shop = el.dataset.shop;
   var productId = el.dataset.productId;
-  var APP_URL = window.AMONI_APP_URL || '';
+  var APP_URL = el.dataset.appUrl || '';
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
     .then(function (r) { return r.json(); })
@@ -35,7 +35,7 @@
             '<div style="font-size:11.5px;color:#888;">Bundle total</div>' +
             '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">$' + ((funnel.triggerPrice || 0) + discountedPrice).toFixed(2) + '</div>' +
           '</div>' +
-          '<button onclick="amoniAddBundle(\'' + funnel.offerVariantId + '\', this, \'' + funnel.id + '\', \'' + shop + '\')"' +
+          '<button onclick="amoniAddBundle(\'' + funnel.offerVariantId + '\', this, \'' + funnel.id + '\', \'' + shop + '\', \'' + APP_URL + '\')"' +
             ' style="padding:12px 22px;border-radius:10px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;">' +
             'Add both to cart' +
           '</button>' +
@@ -51,7 +51,7 @@
     })
     .catch(function () {});
 
-  window.amoniAddBundle = function (variantId, btn, funnelId, shop) {
+  window.amoniAddBundle = function (variantId, btn, funnelId, shop, appUrl) {
     btn.textContent = 'Adding...';
     btn.disabled = true;
 
@@ -63,8 +63,7 @@
       .then(function () {
         btn.textContent = '✓ Added!';
         btn.style.background = '#0c8a4f';
-        var APP_URL = window.AMONI_APP_URL || '';
-        fetch(APP_URL + '/api/events', {
+        fetch(appUrl + '/api/events', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ funnelId: funnelId, shop: shop, eventType: 'accept' }),
