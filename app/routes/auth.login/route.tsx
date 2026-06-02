@@ -10,11 +10,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const data = await request.formData();
-  const shop = String(data.get("shop") || "");
+  const shop = String(data.get("shop") || "").trim();
   if (!shop) return json({ errors: { shop: "Please enter a shop domain" } });
 
-  // Build a new request with the shop in the URL so login() can read it
-  // without re-consuming the already-read body
   const url = new URL(request.url);
   url.searchParams.set("shop", shop);
   const newRequest = new Request(url.toString(), { method: "GET", headers: request.headers });
