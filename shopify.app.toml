@@ -15,7 +15,7 @@ embedded = true
     build = "npm exec -- remix vite:build"
 
 [access_scopes]
-scopes = "read_products,read_orders,write_products,write_payment_sessions"
+scopes = "read_products,read_orders,write_products"
 
 [auth]
 redirect_urls = [
