@@ -1,11 +1,5 @@
 {
   "buildCommand": "npm run build",
-  "outputDirectory": "build/client",
   "installCommand": "npm install && npx prisma generate",
-  "framework": null,
-  "functions": {
-    "build/server/index.js": {
-      "includeFiles": "build/server/**"
-    }
-  }
+  "framework": "remix"
 }
