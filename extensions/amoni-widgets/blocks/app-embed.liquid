@@ -1,0 +1,21 @@
+{% comment %} Amoni Upsell App Embed - enables global widget support {% endcomment %}
+<script>
+  window.AMONI_APP_URL = {{ block.settings.app_url | json }};
+  window.AMONI_SHOP = {{ shop.permanent_domain | json }};
+</script>
+
+{% schema %}
+{
+  "name": "Amoni Upsell",
+  "target": "body",
+  "settings": [
+    {
+      "type": "text",
+      "id": "app_url",
+      "label": "App URL",
+      "info": "Paste your Amoni Upsell app URL here (e.g. https://your-app.vercel.app)",
+      "default": ""
+    }
+  ]
+}
+{% endschema %}
