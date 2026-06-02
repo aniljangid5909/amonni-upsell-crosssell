@@ -16,8 +16,9 @@ export default function AppLayout() {
   return (
     <AppProvider i18n={enTranslations}>
       <NavMenu>
-        <a href="/app" rel="home">Home</a>
-        <a href="/app/storefront-preview">Storefront Preview</a>
+        <a href="/app" rel="home">Funnels</a>
+        <a href="/app/funnels/new">Create funnel</a>
+        <a href="/app/storefront-preview">Storefront preview</a>
       </NavMenu>
       <Outlet />
     </AppProvider>
