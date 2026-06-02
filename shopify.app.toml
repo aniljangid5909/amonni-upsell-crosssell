@@ -1,6 +1,6 @@
 name = "Amoni Upsell"
 client_id = "e0f1c45c8adddef7b938f848366269b9"
-application_url = "https://residents-hill-drops-suspected.trycloudflare.com"
+application_url = "https://amonni-upsell-crosssell.vercel.app"
 embedded = true
 
 [build]
@@ -13,9 +13,9 @@ scopes = "read_orders,read_products,write_products"
 
 [auth]
 redirect_urls = [
-  "https://residents-hill-drops-suspected.trycloudflare.com/auth/callback",
-  "https://residents-hill-drops-suspected.trycloudflare.com/auth/shopify/callback",
-  "https://residents-hill-drops-suspected.trycloudflare.com/api/auth/callback"
+  "https://amonni-upsell-crosssell.vercel.app/auth/callback",
+  "https://amonni-upsell-crosssell.vercel.app/auth/shopify/callback",
+  "https://amonni-upsell-crosssell.vercel.app/api/auth/callback"
 ]
 
 [webhooks]
