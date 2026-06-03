@@ -6,6 +6,19 @@ import enTranslations from "@shopify/polaris/locales/en.json";
 import "@shopify/polaris/build/esm/styles.css";
 import { authenticate } from "../shopify.server";
 
+function exitIframe(url: string) {
+  return new Response(
+    `<!DOCTYPE html><html><head>
+      <script>
+        var u = ${JSON.stringify(url)};
+        if (window.top && window.top !== window) { window.top.location.href = u; }
+        else { window.location.href = u; }
+      </script>
+    </head><body>Redirecting...</body></html>`,
+    { status: 200, headers: { "Content-Type": "text/html" } }
+  );
+}
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const shop = url.searchParams.get("shop") ?? "";
@@ -14,26 +27,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     await authenticate.admin(request);
   } catch (error) {
     if (error instanceof Response && error.status === 302) {
-      const location = error.headers.get("Location") ?? "";
-      return new Response(
-        `<!DOCTYPE html><html><head>
-          <script>
-            var url = ${JSON.stringify(location)};
-            if (window.top && window.top !== window) {
-              window.top.location.href = url;
-            } else {
-              window.location.href = url;
-            }
-          </script>
-        </head><body>Redirecting...</body></html>`,
-        { status: 200, headers: { "Content-Type": "text/html" } }
-      );
+      // Auth redirect (OAuth needed) — break out of Shopify iframe
+      return exitIframe(error.headers.get("Location") ?? "/");
     }
-    // Surface actual errors
-    const msg = error instanceof Error
-      ? `${error.name}: ${error.message}`
-      : `Auth error: ${String(error)}`;
-    throw new Error(msg);
+    // Token exchange failed (no offline session in DB) — force OAuth install
+    // Redirect top window to auth, which starts the traditional OAuth flow
+    const authUrl = `${process.env.SHOPIFY_APP_URL || ""}/auth?shop=${encodeURIComponent(shop)}`;
+    return exitIframe(authUrl);
   }
 
   return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", shop });
