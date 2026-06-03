@@ -21,17 +21,15 @@ function exitIframe(url: string) {
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-  const shop = url.searchParams.get("shop") ?? "";
+  let shop = url.searchParams.get("shop") ?? "";
 
   try {
-    await authenticate.admin(request);
+    const { session } = await authenticate.admin(request);
+    shop = session.shop; // always use session shop, not just URL param
   } catch (error) {
     if (error instanceof Response && error.status === 302) {
-      // Auth redirect (OAuth needed) — break out of Shopify iframe
       return exitIframe(error.headers.get("Location") ?? "/");
     }
-    // Token exchange failed (no offline session in DB) — force OAuth install
-    // Redirect top window to auth, which starts the traditional OAuth flow
     const authUrl = `${process.env.SHOPIFY_APP_URL || ""}/auth?shop=${encodeURIComponent(shop)}`;
     return exitIframe(authUrl);
   }
@@ -46,9 +44,9 @@ export default function AppLayout() {
   return (
     <AppProvider i18n={enTranslations}>
       <ui-nav-menu>
-        <Link to={`/app/funnels${qs}`} rel="home">Funnels</Link>
-        <Link to={`/app/funnels/new${qs}`}>Create funnel</Link>
-        <Link to={`/app/storefront-preview${qs}`}>Storefront preview</Link>
+        <a href={`/app/funnels${qs}`} rel="home">Funnels</a>
+        <a href={`/app/funnels/new${qs}`}>Create funnel</a>
+        <a href={`/app/storefront-preview${qs}`}>Storefront preview</a>
       </ui-nav-menu>
       <Outlet />
     </AppProvider>
