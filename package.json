@@ -1,6 +1,7 @@
 {
   "name": "amonni-upsell-crosssell",
   "private": true,
+  "type": "module",
   "scripts": {
     "build": "remix vite:build",
     "dev": "shopify app dev",
