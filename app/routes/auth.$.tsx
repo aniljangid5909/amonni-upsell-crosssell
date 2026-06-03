@@ -5,8 +5,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     await authenticate.admin(request);
   } catch (error) {
-    // If auth throws a redirect (needs OAuth), break out of the Shopify iframe
-    // so accounts.shopify.com can load in the top-level window
     if (error instanceof Response && error.status === 302) {
       const location = error.headers.get("Location") ?? "";
       return new Response(
