@@ -1,6 +1,7 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { redirect } from "@remix-run/node";
-import { useNavigation, Form } from "@remix-run/react";
+import { useNavigation, Form, useRouteError } from "@remix-run/react";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import { useState, useCallback } from "react";
 import {
   Page,
@@ -94,6 +95,12 @@ type PickedProduct = {
 
 function extractNumericId(gid: string) {
   return gid.split("/").pop() || gid;
+}
+
+export const headers: HeadersFunction = (headersArgs) => boundary.headers(headersArgs);
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
 }
 
 export default function NewFunnelPage() {

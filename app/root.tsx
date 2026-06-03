@@ -23,7 +23,7 @@ export default function App() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <Meta />
         <Links />
-        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" crossOrigin="anonymous" />
+        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js"></script>
       </head>
       <body>
         <Outlet />

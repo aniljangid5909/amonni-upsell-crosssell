@@ -1,6 +1,7 @@
-import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import type { ActionFunctionArgs, LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, Link, useNavigate } from "@remix-run/react";
+import { useLoaderData, useSubmit, Link, useNavigate, useRouteError } from "@remix-run/react";
+import { boundary } from "@shopify/shopify-app-remix/server";
 import {
   Page,
   IndexTable,
@@ -110,6 +111,12 @@ function statusBadge(status: string) {
     default:
       return <Badge>{status}</Badge>;
   }
+}
+
+export const headers: HeadersFunction = (headersArgs) => boundary.headers(headersArgs);
+
+export function ErrorBoundary() {
+  return boundary.error(useRouteError());
 }
 
 export default function FunnelsPage() {
