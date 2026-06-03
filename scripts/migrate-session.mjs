@@ -10,6 +10,9 @@ await client.connect();
 
 await client.query(`ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "refreshToken" TEXT`);
 await client.query(`ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "refreshTokenExpires" TIMESTAMPTZ`);
+await client.query(`ALTER TABLE "Funnel" ADD COLUMN IF NOT EXISTS "offerImageUrl" TEXT NOT NULL DEFAULT ''`);
+await client.query(`ALTER TABLE "Funnel" ADD COLUMN IF NOT EXISTS "offerVariantId" TEXT NOT NULL DEFAULT ''`);
+await client.query(`ALTER TABLE "Funnel" ADD COLUMN IF NOT EXISTS "offerPrice" DOUBLE PRECISION NOT NULL DEFAULT 0`);
 
-console.log("Done! Both columns added.");
+console.log("Done! All columns added.");
 await client.end();

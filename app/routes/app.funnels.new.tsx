@@ -55,6 +55,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     (formData.get("minCartValue") as string) || "0"
   );
   const skipSubscribed = formData.get("skipSubscribed") === "on";
+  const offerImageUrl = (formData.get("offerImageUrl") as string) || "";
+  const offerVariantId = (formData.get("offerVariantId") as string) || "";
+  const offerPrice = parseFloat((formData.get("offerPrice") as string) || "0");
 
   if (!name || !placement || !offerType) {
     return redirect(`/app/funnels/new${qsStr}`);
@@ -72,6 +75,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       offerType,
       triggerProductIds,
       offerProductId: offerProductId || "",
+      offerImageUrl,
+      offerVariantId,
+      offerPrice,
       discountType,
       discountValue,
       minCartValue,
@@ -106,6 +112,8 @@ type PickedProduct = {
   id: string;
   title: string;
   imageUrl: string;
+  variantId?: string;
+  price?: string;
 };
 
 function extractNumericId(gid: string) {
@@ -156,10 +164,13 @@ export default function NewFunnelPage() {
     });
     if (selected?.[0]) {
       const p = selected[0];
+      const v = p.variants?.[0];
       setOfferProduct({
         id: p.id,
         title: p.title,
         imageUrl: p.images?.[0]?.originalSrc || "",
+        variantId: v?.id ? extractNumericId(v.id) : "",
+        price: v?.price || "0",
       });
     }
   }, [offerProduct]);
@@ -181,6 +192,9 @@ export default function NewFunnelPage() {
         {/* Hidden fields carrying the resolved IDs */}
         <input type="hidden" name="triggerProductIds" value={triggerProductIds} />
         <input type="hidden" name="offerProductId" value={offerProductId} />
+        <input type="hidden" name="offerImageUrl" value={offerProduct?.imageUrl || ""} />
+        <input type="hidden" name="offerVariantId" value={offerProduct?.variantId || ""} />
+        <input type="hidden" name="offerPrice" value={offerProduct?.price || "0"} />
 
         <Layout>
           {/* ── Funnel details ── */}

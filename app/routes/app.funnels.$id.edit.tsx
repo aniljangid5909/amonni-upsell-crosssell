@@ -72,6 +72,9 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const discountValue = parseFloat((formData.get("discountValue") as string) || "0");
   const minCartValue = parseFloat((formData.get("minCartValue") as string) || "0");
   const skipSubscribed = formData.get("skipSubscribed") === "on";
+  const offerImageUrl = (formData.get("offerImageUrl") as string) || "";
+  const offerVariantId = (formData.get("offerVariantId") as string) || "";
+  const offerPrice = parseFloat((formData.get("offerPrice") as string) || "0");
 
   const triggerProductIds = triggerProductIdsRaw
     ? triggerProductIdsRaw.split(",").map((s) => s.trim()).filter(Boolean)
@@ -79,7 +82,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   await prisma.funnel.update({
     where: { id: id as string, shop: session.shop },
-    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", discountType, discountValue, minCartValue, skipSubscribed },
+    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed },
   });
 
   return redirect(`/app/funnels${qs}`);
@@ -104,7 +107,7 @@ const discountTypeOptions = [
   { label: "Fixed amount off", value: "fixed" },
 ];
 
-type PickedProduct = { id: string; title: string; imageUrl: string };
+type PickedProduct = { id: string; title: string; imageUrl: string; variantId?: string; price?: string };
 
 function extractNumericId(gid: string) {
   return gid.split("/").pop() || gid;
@@ -134,7 +137,7 @@ export default function EditFunnelPage() {
   );
   const [offerProduct, setOfferProduct] = useState<PickedProduct | null>(
     funnel.offerProductId
-      ? { id: numericToGid(funnel.offerProductId), title: `Product ${funnel.offerProductId}`, imageUrl: "" }
+      ? { id: numericToGid(funnel.offerProductId), title: `Product ${funnel.offerProductId}`, imageUrl: funnel.offerImageUrl, variantId: funnel.offerVariantId, price: String(funnel.offerPrice) }
       : null
   );
 
@@ -161,7 +164,8 @@ export default function EditFunnelPage() {
     });
     if (selected?.[0]) {
       const p = selected[0];
-      setOfferProduct({ id: p.id, title: p.title, imageUrl: p.images?.[0]?.originalSrc || "" });
+      const v = p.variants?.[0];
+      setOfferProduct({ id: p.id, title: p.title, imageUrl: p.images?.[0]?.originalSrc || "", variantId: v?.id ? extractNumericId(v.id) : "", price: v?.price || "0" });
     }
   }, [offerProduct]);
 
@@ -189,6 +193,9 @@ export default function EditFunnelPage() {
       <Form method="post">
         <input type="hidden" name="triggerProductIds" value={triggerProductIds} />
         <input type="hidden" name="offerProductId" value={offerProductId} />
+        <input type="hidden" name="offerImageUrl" value={offerProduct?.imageUrl || ""} />
+        <input type="hidden" name="offerVariantId" value={offerProduct?.variantId || ""} />
+        <input type="hidden" name="offerPrice" value={offerProduct?.price || "0"} />
 
         <Layout>
           <Layout.Section>

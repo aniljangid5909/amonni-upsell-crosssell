@@ -36,6 +36,9 @@ model Funnel {
   offerType         String
   triggerProductIds String[]
   offerProductId    String
+  offerImageUrl     String   @default("")
+  offerVariantId    String   @default("")
+  offerPrice        Float    @default(0)
   discountType      String   @default("none")
   discountValue     Float    @default(0)
   minCartValue      Float    @default(0)
