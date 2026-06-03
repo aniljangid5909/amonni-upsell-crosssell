@@ -2,24 +2,12 @@ import type { LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  try {
-    await authenticate.admin(request);
-  } catch (error) {
-    if (error instanceof Response && error.status === 302) {
-      const location = error.headers.get("Location") ?? "";
-      return new Response(
-        `<!DOCTYPE html><html><head><script>
-          var url = ${JSON.stringify(location)};
-          if (window.top && window.top !== window) {
-            window.top.location.href = url;
-          } else {
-            window.location.href = url;
-          }
-        </script></head><body>Redirecting...</body></html>`,
-        { status: 200, headers: { "Content-Type": "text/html" } }
-      );
-    }
-    throw error;
-  }
+  // This route handles all /auth/* paths.
+  // authenticate.admin() will either complete the OAuth callback (storing the session)
+  // and redirect to the embedded app, or throw a 302 redirect to start OAuth.
+  // We don't need the exit-iframe pattern here because:
+  // - OAuth callback (/auth/callback) runs in the top window (not iframe)
+  // - The library redirects back to Shopify Admin after callback completes
+  await authenticate.admin(request);
   return null;
 };
