@@ -1,7 +1,7 @@
 import type { LoaderFunctionArgs, HeadersFunction } from "@remix-run/node";
-import { Links, Meta, Outlet, Scripts, ScrollRestoration, useLoaderData } from "@remix-run/react";
-import { addDocumentResponseHeaders } from "./shopify.server";
 import { json } from "@remix-run/node";
+import { Links, Meta, Outlet, Scripts, ScrollRestoration } from "@remix-run/react";
+import { addDocumentResponseHeaders } from "./shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const headers = addDocumentResponseHeaders(request, new Headers());
@@ -20,6 +20,7 @@ export default function App() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <Meta />
         <Links />
+        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" />
       </head>
       <body>
         <Outlet />

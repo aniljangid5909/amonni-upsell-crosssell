@@ -1,6 +1,6 @@
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { Outlet } from "@remix-run/react";
+import { Outlet, useLoaderData } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
 import { NavMenu } from "@shopify/app-bridge-react";
 import enTranslations from "@shopify/polaris/locales/en.json";
@@ -13,13 +13,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export default function AppLayout() {
+  const { apiKey } = useLoaderData<typeof loader>();
+
   return (
     <AppProvider i18n={enTranslations}>
-      <NavMenu>
+      <ui-nav-menu>
         <a href="/app" rel="home">Funnels</a>
         <a href="/app/funnels/new">Create funnel</a>
         <a href="/app/storefront-preview">Storefront preview</a>
-      </NavMenu>
+      </ui-nav-menu>
       <Outlet />
     </AppProvider>
   );
