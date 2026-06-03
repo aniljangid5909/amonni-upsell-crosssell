@@ -13,8 +13,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   try {
     await authenticate.admin(request);
   } catch (error) {
-    // If auth throws a redirect, we need to break out of the Shopify iframe
-    // so the OAuth can complete in the top-level window
     if (error instanceof Response && error.status === 302) {
       const location = error.headers.get("Location") ?? "";
       return new Response(
@@ -31,7 +29,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         { status: 200, headers: { "Content-Type": "text/html" } }
       );
     }
-    throw error;
+    // Surface actual errors
+    const msg = error instanceof Error
+      ? `${error.name}: ${error.message}`
+      : `Auth error: ${String(error)}`;
+    throw new Error(msg);
   }
 
   return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", shop });
