@@ -5,7 +5,10 @@ import { addDocumentResponseHeaders } from "./shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const headers = addDocumentResponseHeaders(request, new Headers());
-  return json({}, { headers });
+  return json(
+    { apiKey: process.env.SHOPIFY_API_KEY ?? "" },
+    { headers }
+  );
 };
 
 export const headers: HeadersFunction = ({ loaderHeaders }) => {
@@ -20,7 +23,7 @@ export default function App() {
         <meta name="viewport" content="width=device-width,initial-scale=1" />
         <Meta />
         <Links />
-        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" />
+        <script src="https://cdn.shopify.com/shopifycloud/app-bridge.js" crossOrigin="anonymous" />
       </head>
       <body>
         <Outlet />
