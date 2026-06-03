@@ -1,6 +1,6 @@
-import type { ActionFunctionArgs } from "@remix-run/node";
-import { redirect } from "@remix-run/node";
-import { useNavigation, Form } from "@remix-run/react";
+import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
+import { json, redirect } from "@remix-run/node";
+import { useNavigation, Form, useLoaderData } from "@remix-run/react";
 import { useState, useCallback } from "react";
 import {
   Page,
@@ -22,8 +22,24 @@ import {
 } from "@shopify/polaris";
 import { authenticate, prisma } from "../shopify.server";
 
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  await authenticate.admin(request);
+  const url = new URL(request.url);
+  return json({
+    host: url.searchParams.get("host") ?? "",
+    shop: url.searchParams.get("shop") ?? "",
+  });
+};
+
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const url = new URL(request.url);
+  const host = url.searchParams.get("host") ?? "";
+  const shop = url.searchParams.get("shop") ?? session.shop;
+  const qs = new URLSearchParams();
+  if (shop) qs.set("shop", shop);
+  if (host) qs.set("host", host);
+  const qsStr = qs.toString() ? `?${qs.toString()}` : "";
   const formData = await request.formData();
 
   const name = formData.get("name") as string;
@@ -41,7 +57,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const skipSubscribed = formData.get("skipSubscribed") === "on";
 
   if (!name || !placement || !offerType) {
-    return redirect("/app/funnels/new");
+    return redirect(`/app/funnels/new${qsStr}`);
   }
 
   const triggerProductIds = triggerProductIdsRaw
@@ -64,7 +80,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     },
   });
 
-  return redirect("/app/funnels");
+  return redirect(`/app/funnels${qsStr}`);
 };
 
 const placementOptions = [
@@ -97,6 +113,11 @@ function extractNumericId(gid: string) {
 }
 
 export default function NewFunnelPage() {
+  const { shop, host } = useLoaderData<typeof loader>();
+  const params = new URLSearchParams();
+  if (shop) params.set("shop", shop);
+  if (host) params.set("host", host);
+  const qs = params.toString() ? `?${params.toString()}` : "";
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
@@ -153,7 +174,7 @@ export default function NewFunnelPage() {
 
   return (
     <Page
-      backAction={{ content: "Funnels", url: "/app/funnels" }}
+      backAction={{ content: "Funnels", url: `/app/funnels${qs}` }}
       title="Create funnel"
     >
       <Form method="post">

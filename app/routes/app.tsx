@@ -22,10 +22,11 @@ function exitIframe(url: string) {
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   let shop = url.searchParams.get("shop") ?? "";
+  const host = url.searchParams.get("host") ?? "";
 
   try {
     const { session } = await authenticate.admin(request);
-    shop = session.shop; // always use session shop, not just URL param
+    shop = session.shop;
   } catch (error) {
     if (error instanceof Response && error.status === 302) {
       return exitIframe(error.headers.get("Location") ?? "/");
@@ -34,12 +35,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return exitIframe(authUrl);
   }
 
-  return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", shop });
+  return json({ apiKey: process.env.SHOPIFY_API_KEY ?? "", shop, host });
 };
 
 export default function AppLayout() {
-  const { shop } = useLoaderData<typeof loader>();
-  const qs = shop ? `?shop=${encodeURIComponent(shop)}` : "";
+  const { shop, host } = useLoaderData<typeof loader>();
+  const params = new URLSearchParams();
+  if (shop) params.set("shop", shop);
+  if (host) params.set("host", host);
+  const qs = params.toString() ? `?${params.toString()}` : "";
 
   return (
     <AppProvider i18n={enTranslations}>

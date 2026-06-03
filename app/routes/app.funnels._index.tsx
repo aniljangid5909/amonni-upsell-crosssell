@@ -15,7 +15,9 @@ import { authenticate, prisma } from "../shopify.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
-  const shop = new URL(request.url).searchParams.get("shop") ?? session.shop;
+  const url = new URL(request.url);
+  const shop = url.searchParams.get("shop") ?? session.shop;
+  const host = url.searchParams.get("host") ?? "";
 
   const funnels = await prisma.funnel.findMany({
     where: { shop: session.shop },
@@ -49,7 +51,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
   });
 
-  return json({ funnels: funnelStats, shop });
+  return json({ funnels: funnelStats, shop, host });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
@@ -114,8 +116,11 @@ function statusBadge(status: string) {
 }
 
 export default function FunnelsPage() {
-  const { funnels, shop } = useLoaderData<typeof loader>();
-  const qs = shop ? `?shop=${encodeURIComponent(shop)}` : "";
+  const { funnels, shop, host } = useLoaderData<typeof loader>();
+  const params = new URLSearchParams();
+  if (shop) params.set("shop", shop);
+  if (host) params.set("host", host);
+  const qs = params.toString() ? `?${params.toString()}` : "";
   const submit = useSubmit();
   const goTo = (path: string) => { window.location.href = path; };
 

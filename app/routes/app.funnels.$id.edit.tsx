@@ -25,6 +25,7 @@ import { authenticate, prisma } from "../shopify.server";
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const { id } = params;
+  const url = new URL(request.url);
 
   const funnel = await prisma.funnel.findFirst({
     where: { id: id as string, shop: session.shop },
@@ -32,18 +33,34 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
 
   if (!funnel) throw new Response("Not found", { status: 404 });
 
-  return json({ funnel });
+  return json({
+    funnel,
+    host: url.searchParams.get("host") ?? "",
+    shop: url.searchParams.get("shop") ?? session.shop,
+  });
 };
+
+function buildQs(shop: string, host: string) {
+  const p = new URLSearchParams();
+  if (shop) p.set("shop", shop);
+  if (host) p.set("host", host);
+  return p.toString() ? `?${p.toString()}` : "";
+}
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
   const { session } = await authenticate.admin(request);
   const { id } = params;
+  const url = new URL(request.url);
+  const qs = buildQs(
+    url.searchParams.get("shop") ?? session.shop,
+    url.searchParams.get("host") ?? ""
+  );
   const formData = await request.formData();
   const _action = formData.get("_action") as string;
 
   if (_action === "delete") {
     await prisma.funnel.delete({ where: { id: id as string, shop: session.shop } });
-    return redirect("/app/funnels");
+    return redirect(`/app/funnels${qs}`);
   }
 
   const name = formData.get("name") as string;
@@ -65,7 +82,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", discountType, discountValue, minCartValue, skipSubscribed },
   });
 
-  return redirect("/app/funnels");
+  return redirect(`/app/funnels${qs}`);
 };
 
 const placementOptions = [
@@ -99,7 +116,8 @@ function numericToGid(id: string) {
 }
 
 export default function EditFunnelPage() {
-  const { funnel } = useLoaderData<typeof loader>();
+  const { funnel, shop, host } = useLoaderData<typeof loader>();
+  const qs = buildQs(shop, host);
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
@@ -167,7 +185,7 @@ export default function EditFunnelPage() {
   };
 
   return (
-    <Page backAction={{ content: "Funnels", url: "/app/funnels" }} title="Edit funnel">
+    <Page backAction={{ content: "Funnels", url: `/app/funnels${qs}` }} title="Edit funnel">
       <Form method="post">
         <input type="hidden" name="triggerProductIds" value={triggerProductIds} />
         <input type="hidden" name="offerProductId" value={offerProductId} />
@@ -284,7 +302,7 @@ export default function EditFunnelPage() {
         <PageActions
           primaryAction={{ content: "Save funnel", submit: true, loading: isSubmitting }}
           secondaryActions={[
-            { content: "Cancel", url: "/app/funnels" },
+            { content: "Cancel", url: `/app/funnels${qs}` },
             { content: "Delete funnel", destructive: true, onAction: handleDelete },
           ]}
         />
