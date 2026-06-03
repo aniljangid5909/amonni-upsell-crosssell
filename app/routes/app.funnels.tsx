@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit, Link } from "@remix-run/react";
+import { useLoaderData, useSubmit, Link, useNavigate } from "@remix-run/react";
 import {
   Page,
   IndexTable,
@@ -115,6 +115,7 @@ function statusBadge(status: string) {
 export default function FunnelsPage() {
   const { funnels } = useLoaderData<typeof loader>();
   const submit = useSubmit();
+  const navigate = useNavigate();
 
   const resourceName = { singular: "funnel", plural: "funnels" };
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
@@ -154,7 +155,7 @@ export default function FunnelsPage() {
       <IndexTable.Cell>{funnel.acceptRate}%</IndexTable.Cell>
       <IndexTable.Cell>
         <ButtonGroup>
-          <Button url={`/app/funnels/${funnel.id}/edit`} size="slim">
+          <Button size="slim" onClick={() => navigate(`/app/funnels/${funnel.id}/edit`)}>
             Edit
           </Button>
           <Button
@@ -179,7 +180,7 @@ export default function FunnelsPage() {
     <Page
       title="Funnels"
       primaryAction={
-        <Button variant="primary" url="/app/funnels/new">
+        <Button variant="primary" onClick={() => navigate("/app/funnels/new")}>
           Create funnel
         </Button>
       }
@@ -187,7 +188,7 @@ export default function FunnelsPage() {
       {funnels.length === 0 ? (
         <EmptyState
           heading="Create your first upsell funnel"
-          action={{ content: "Create funnel", url: "/app/funnels/new" }}
+          action={{ content: "Create funnel", onAction: () => navigate("/app/funnels/new") }}
           image="https://cdn.shopify.com/s/files/1/0262/4071/2726/files/emptystate-files.png"
         >
           <p>
