@@ -2,7 +2,9 @@
 <div id="amoni-product-offer"
   data-shop="{{ shop.permanent_domain }}"
   data-product-id="{{ product.id }}"
-  data-app-url="{{ block.settings.app_url }}"
+  data-app-url="https://amoni-upsell-cross-sell.vercel.app"
+  data-trigger-image="{{ product.featured_image | image_url: width: 200 }}"
+  data-trigger-price="{{ product.price | divided_by: 100.0 }}"
   style="display:none; background:#fff; border-radius:14px; padding:20px; box-shadow:0 8px 28px rgba(0,0,0,0.08); margin:20px 0;">
   <div style="font-weight:700; font-size:15px; color:#1a1a1a; margin-bottom:4px;">Frequently bought together</div>
   <div id="amoni-product-offer-content"></div>
@@ -13,12 +15,6 @@
 {
   "name": "Amoni Product Offer",
   "target": "section",
-  "settings": [
-    {
-      "type": "text",
-      "id": "app_url",
-      "label": "App URL"
-    }
-  ]
+  "settings": []
 }
 {% endschema %}

@@ -4,7 +4,9 @@
 
   var shop = el.dataset.shop;
   var productId = el.dataset.productId;
-  var APP_URL = el.dataset.appUrl || '';
+  var APP_URL = el.dataset.appUrl || 'https://amoni-upsell-cross-sell.vercel.app';
+  var triggerImage = el.dataset.triggerImage || '';
+  var triggerPrice = parseFloat(el.dataset.triggerPrice || '0');
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
     .then(function (r) { return r.json(); })
@@ -13,27 +15,38 @@
       if (!funnels.length) return;
       var funnel = funnels[0];
 
+      var offerPrice = parseFloat(funnel.offerPrice) || 0;
       var discountedPrice =
         funnel.discountType === 'percent'
-          ? funnel.offerPrice * (1 - funnel.discountValue / 100)
-          : funnel.offerPrice;
+          ? offerPrice * (1 - (parseFloat(funnel.discountValue) || 0) / 100)
+          : funnel.discountType === 'fixed'
+          ? offerPrice - (parseFloat(funnel.discountValue) || 0)
+          : offerPrice;
+
+      var bundleTotal = (triggerPrice + discountedPrice).toFixed(2);
+
+      var discountNote = funnel.discountType === 'percent' && funnel.discountValue > 0
+        ? '<div style="font-size:12.5px;color:#888;margin-bottom:16px;">Save ' + funnel.discountValue + '% when added as a bundle</div>'
+        : funnel.discountType === 'fixed' && funnel.discountValue > 0
+        ? '<div style="font-size:12.5px;color:#888;margin-bottom:16px;">Save $' + funnel.discountValue + ' when added as a bundle</div>'
+        : '';
 
       var content = document.getElementById('amoni-product-offer-content');
       content.innerHTML =
-        '<div style="font-size:12.5px;color:#888;margin-bottom:16px;">Save ' + funnel.discountValue + '% when added as a bundle</div>' +
+        discountNote +
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:18px;">' +
-          (funnel.triggerImageUrl
-            ? '<img src="' + funnel.triggerImageUrl + '" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);" />'
+          (triggerImage
+            ? '<img src="' + triggerImage + '" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);" />'
             : '') +
           '<span style="color:#bbb;font-size:18px;">+</span>' +
-          '<div style="position:relative;">' +
-            '<img src="' + funnel.offerImageUrl + '" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);" />' +
-          '</div>' +
+          (funnel.offerImageUrl
+            ? '<img src="' + funnel.offerImageUrl + '" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);" />'
+            : '<div style="width:72px;height:72px;border-radius:12px;background:#f0f0f0;border:1px solid rgba(0,0,0,0.08);"></div>') +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">' +
           '<div>' +
             '<div style="font-size:11.5px;color:#888;">Bundle total</div>' +
-            '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">$' + ((funnel.triggerPrice || 0) + discountedPrice).toFixed(2) + '</div>' +
+            '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">$' + bundleTotal + '</div>' +
           '</div>' +
           '<button onclick="amoniAddBundle(\'' + funnel.offerVariantId + '\', this, \'' + funnel.id + '\', \'' + shop + '\', \'' + APP_URL + '\')"' +
             ' style="padding:12px 22px;border-radius:10px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;">' +
@@ -69,6 +82,6 @@
           body: JSON.stringify({ funnelId: funnelId, shop: shop, eventType: 'accept' }),
         });
       })
-      .catch(function () {});
+      .catch(function () { btn.textContent = 'Error'; });
   };
 })();
