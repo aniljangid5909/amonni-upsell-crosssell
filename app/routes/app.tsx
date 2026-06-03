@@ -1,4 +1,4 @@
-import type { LoaderFunctionArgs } from "@remix-run/node";
+import type { LoaderFunctionArgs, ShouldRevalidateFunction } from "@remix-run/node";
 import { json } from "@remix-run/node";
 import { Outlet, useLoaderData, Link } from "@remix-run/react";
 import { AppProvider } from "@shopify/polaris";
@@ -18,6 +18,9 @@ function exitIframe(url: string) {
     { status: 200, headers: { "Content-Type": "text/html" } }
   );
 }
+
+// Don't re-run authenticate.admin on every child navigation — only on initial load
+export const shouldRevalidate: ShouldRevalidateFunction = () => false;
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);

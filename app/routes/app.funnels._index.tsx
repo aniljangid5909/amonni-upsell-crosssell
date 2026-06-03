@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json } from "@remix-run/node";
-import { useLoaderData, useSubmit } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigate } from "@remix-run/react";
 import {
   Page,
   IndexTable,
@@ -122,7 +122,8 @@ export default function FunnelsPage() {
   if (host) params.set("host", host);
   const qs = params.toString() ? `?${params.toString()}` : "";
   const submit = useSubmit();
-  const goTo = (path: string) => { window.location.href = path; };
+  const navigate = useNavigate();
+  const goTo = (path: string) => navigate(path);
 
   const resourceName = { singular: "funnel", plural: "funnels" };
   const { selectedResources, allResourcesSelected, handleSelectionChange } =
