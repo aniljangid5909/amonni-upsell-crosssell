@@ -1,10 +1,5 @@
 {
   "buildCommand": "npm run build",
   "installCommand": "npm install && npx prisma generate",
-  "framework": "remix",
-  "functions": {
-    "build/server/index.js": {
-      "runtime": "nodejs20.x"
-    }
-  }
+  "framework": "remix"
 }
