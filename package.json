@@ -20,6 +20,7 @@
     "@shopify/polaris": "^13.9.5",
     "@shopify/shopify-app-remix": "^3.7.0",
     "@shopify/shopify-app-session-storage-prisma": "^9.0.0",
+    "@vercel/remix": "^2.16.0",
     "isbot": "^4",
     "prisma": "6.x",
     "react": "^18.3.1",
