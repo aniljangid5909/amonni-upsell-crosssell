@@ -1,6 +1,6 @@
 name = "Amoni Upsell"
 client_id = "e0f1c45c8adddef7b938f848366269b9"
-application_url = "https://amoni-upsell-cross-sell.vercel.app"
+application_url = "https://amoni-upsell-cross-sell.vercel.app/app/funnels"
 embedded = true
 
 [build]
