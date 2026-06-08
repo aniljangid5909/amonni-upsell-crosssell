@@ -15,6 +15,7 @@
       var funnels = data.funnels || [];
       if (!funnels.length) return;
       var funnel = funnels[0];
+      var type = funnel.offerType || 'bundle';
 
       var offerPrice = parseFloat(funnel.offerPrice) || 0;
       var discountedPrice =
@@ -24,42 +25,59 @@
           ? offerPrice - (parseFloat(funnel.discountValue) || 0)
           : offerPrice;
 
-      var bundleTotal = (triggerPrice + discountedPrice).toFixed(2);
+      // Cross-sell / upsell: show only offer product price. Bundle: show combined total.
+      var isCombined = type === 'bundle';
+      var displayPrice = isCombined
+        ? (triggerPrice + discountedPrice).toFixed(2)
+        : discountedPrice.toFixed(2);
 
-      var discountNote = funnel.discountType === 'percent' && funnel.discountValue > 0
-        ? '<div style="font-size:12.5px;color:#888;margin-bottom:16px;">Save ' + funnel.discountValue + '% when added as a bundle</div>'
-        : funnel.discountType === 'fixed' && funnel.discountValue > 0
-        ? '<div style="font-size:12.5px;color:#888;margin-bottom:16px;">Save $' + funnel.discountValue + ' when added as a bundle</div>'
-        : '';
+      var heading =
+        type === 'cross-sell' ? 'You might also like' :
+        type === 'upsell'     ? 'Upgrade your order'  :
+                                'Frequently bought together';
+
+      var subtext =
+        funnel.discountType === 'percent' && funnel.discountValue > 0
+          ? 'Save ' + funnel.discountValue + '% on this offer'
+          : funnel.discountType === 'fixed' && funnel.discountValue > 0
+          ? 'Save $' + funnel.discountValue + ' on this offer'
+          : '';
+
+      var priceLabel = isCombined ? 'Bundle total' : 'Offer price';
+
+      var btnText =
+        type === 'cross-sell' ? 'Add to cart' :
+        type === 'upsell'     ? 'Upgrade now' :
+                                'Add both to cart';
+
+      // For cross-sell / upsell only add the offer product; for bundle add both
+      var variantsToAdd = isCombined && triggerVariantId
+        ? [funnel.offerVariantId, triggerVariantId]
+        : [funnel.offerVariantId];
 
       var headingEl = document.getElementById('amoni-product-offer-heading');
-      if (headingEl) {
-        headingEl.textContent =
-          funnel.offerType === 'cross-sell' ? 'You might also like' :
-          funnel.offerType === 'upsell'     ? 'Upgrade your order' :
-                                              'Frequently bought together';
-      }
+      if (headingEl) headingEl.textContent = heading;
+
+      var showTrigger = isCombined && triggerImage;
 
       var content = document.getElementById('amoni-product-offer-content');
       content.innerHTML =
-        discountNote +
+        (subtext ? '<div style="font-size:12.5px;color:#888;margin-bottom:16px;">' + subtext + '</div>' : '') +
         '<div style="display:flex;gap:8px;align-items:center;margin-bottom:18px;">' +
-          (triggerImage
-            ? '<img src="' + triggerImage + '" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);" />'
-            : '') +
-          '<span style="color:#bbb;font-size:18px;">+</span>' +
+          (showTrigger ? '<img src="' + triggerImage + '" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);" />' : '') +
+          (showTrigger ? '<span style="color:#bbb;font-size:18px;">+</span>' : '') +
           (funnel.offerImageUrl
             ? '<img src="' + funnel.offerImageUrl + '" style="width:72px;height:72px;border-radius:12px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);" />'
             : '<div style="width:72px;height:72px;border-radius:12px;background:#f0f0f0;border:1px solid rgba(0,0,0,0.08);"></div>') +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">' +
           '<div>' +
-            '<div style="font-size:11.5px;color:#888;">Bundle total</div>' +
-            '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">$' + bundleTotal + '</div>' +
+            '<div style="font-size:11.5px;color:#888;">' + priceLabel + '</div>' +
+            '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">$' + displayPrice + '</div>' +
           '</div>' +
-          '<button onclick="amoniAddBundle(\'' + funnel.offerVariantId + '\', \'' + triggerVariantId + '\', this, \'' + funnel.id + '\', \'' + shop + '\', \'' + APP_URL + '\')"' +
+          '<button onclick="amoniAddBundle(' + JSON.stringify(variantsToAdd) + ', this, \'' + funnel.id + '\', \'' + shop + '\', \'' + APP_URL + '\')"' +
             ' style="padding:12px 22px;border-radius:10px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;">' +
-            'Add both to cart' +
+            btnText +
           '</button>' +
         '</div>';
 
@@ -73,12 +91,12 @@
     })
     .catch(function () {});
 
-  window.amoniAddBundle = function (offerVariantId, triggerVariantId, btn, funnelId, shop, appUrl) {
+  window.amoniAddBundle = function (variantIds, btn, funnelId, shop, appUrl) {
     btn.textContent = 'Adding...';
     btn.disabled = true;
 
-    var items = [{ id: offerVariantId, quantity: 1 }];
-    if (triggerVariantId) items.push({ id: triggerVariantId, quantity: 1 });
+    var items = variantIds.filter(Boolean).map(function (id) { return { id: id, quantity: 1 }; });
+    if (!items.length) { btn.textContent = 'Error'; return; }
 
     fetch('/cart/add.js', {
       method: 'POST',
