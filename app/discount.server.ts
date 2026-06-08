@@ -9,37 +9,41 @@ export async function createFunnelDiscount(
 ): Promise<{ code: string; ruleId: string }> {
   if (discountType === "none" || discountValue <= 0) return { code: "", ruleId: "" };
 
-  const value = discountType === "percent" ? `-${discountValue}` : `-${discountValue}`;
-  const valueType = discountType === "percent" ? "percentage" : "fixed_amount";
-  const code = `AMONI-${funnelId.slice(-8).toUpperCase()}`;
+  try {
+    const valueType = discountType === "percent" ? "percentage" : "fixed_amount";
+    const code = `AMONI-${funnelId.slice(-8).toUpperCase()}`;
 
-  const ruleRes = await admin.rest.post({
-    path: "price_rules",
-    data: {
-      price_rule: {
-        title: code,
-        target_type: "line_item",
-        target_selection: "entitled",
-        allocation_method: "each",
-        value_type: valueType,
-        value: value,
-        customer_selection: "all",
-        entitled_product_ids: [parseInt(offerProductId, 10)],
-        starts_at: new Date().toISOString(),
+    const ruleRes = await admin.rest.post({
+      path: "price_rules",
+      data: {
+        price_rule: {
+          title: code,
+          target_type: "line_item",
+          target_selection: "entitled",
+          allocation_method: "each",
+          value_type: valueType,
+          value: `-${discountValue}`,
+          customer_selection: "all",
+          entitled_product_ids: [parseInt(offerProductId, 10)],
+          starts_at: new Date().toISOString(),
+        },
       },
-    },
-  });
+    });
 
-  const ruleBody = await ruleRes.json() as any;
-  const ruleId = String(ruleBody?.price_rule?.id ?? "");
-  if (!ruleId) return { code: "", ruleId: "" };
+    const ruleBody = await ruleRes.json() as any;
+    const ruleId = String(ruleBody?.price_rule?.id ?? "");
+    if (!ruleId) return { code: "", ruleId: "" };
 
-  await admin.rest.post({
-    path: `price_rules/${ruleId}/discount_codes`,
-    data: { discount_code: { code } },
-  });
+    await admin.rest.post({
+      path: `price_rules/${ruleId}/discount_codes`,
+      data: { discount_code: { code } },
+    });
 
-  return { code, ruleId };
+    return { code, ruleId };
+  } catch (e) {
+    console.error("createFunnelDiscount failed:", e);
+    return { code: "", ruleId: "" };
+  }
 }
 
 export async function deleteFunnelDiscount(
