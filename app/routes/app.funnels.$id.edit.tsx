@@ -21,6 +21,7 @@ import {
   Banner,
 } from "@shopify/polaris";
 import { authenticate, prisma } from "../shopify.server";
+import { createFunnelDiscount, deleteFunnelDiscount } from "../discount.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
@@ -48,7 +49,7 @@ function buildQs(shop: string, host: string) {
 }
 
 export const action = async ({ request, params }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const { id } = params;
   const url = new URL(request.url);
   const qs = buildQs(
@@ -80,9 +81,24 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
     ? triggerProductIdsRaw.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
 
+  const existing = await prisma.funnel.findFirst({ where: { id: id as string, shop: session.shop } });
+
+  // Delete old discount rule if discount settings changed
+  if (existing?.discountRuleId) {
+    await deleteFunnelDiscount(admin, existing.discountRuleId);
+  }
+
+  let discountCode = "";
+  let discountRuleId = "";
+  if ((offerProductId || existing?.offerProductId) && discountType !== "none" && discountValue > 0) {
+    const result = await createFunnelDiscount(admin, id as string, offerProductId || existing?.offerProductId || "", discountType, discountValue);
+    discountCode = result.code;
+    discountRuleId = result.ruleId;
+  }
+
   await prisma.funnel.update({
     where: { id: id as string, shop: session.shop },
-    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed },
+    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId },
   });
 
   return redirect(`/app/funnels${qs}`);

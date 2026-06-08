@@ -21,6 +21,7 @@ import {
   Banner,
 } from "@shopify/polaris";
 import { authenticate, prisma } from "../shopify.server";
+import { createFunnelDiscount } from "../discount.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   await authenticate.admin(request);
@@ -32,7 +33,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const url = new URL(request.url);
   const host = url.searchParams.get("host") ?? "";
   const shop = url.searchParams.get("shop") ?? session.shop;
@@ -67,7 +68,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     ? triggerProductIdsRaw.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
 
-  await prisma.funnel.create({
+  const funnel = await prisma.funnel.create({
     data: {
       shop: session.shop,
       name,
@@ -85,6 +86,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       status: "active",
     },
   });
+
+  if (offerProductId && discountType !== "none" && discountValue > 0) {
+    const { code, ruleId } = await createFunnelDiscount(admin, funnel.id, offerProductId, discountType, discountValue);
+    if (code) await prisma.funnel.update({ where: { id: funnel.id }, data: { discountCode: code, discountRuleId: ruleId } });
+  }
 
   return redirect(`/app/funnels${qsStr}`);
 };

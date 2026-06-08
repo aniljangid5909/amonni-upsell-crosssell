@@ -13,6 +13,8 @@ await client.query(`ALTER TABLE "Session" ADD COLUMN IF NOT EXISTS "refreshToken
 await client.query(`ALTER TABLE "Funnel" ADD COLUMN IF NOT EXISTS "offerImageUrl" TEXT NOT NULL DEFAULT ''`);
 await client.query(`ALTER TABLE "Funnel" ADD COLUMN IF NOT EXISTS "offerVariantId" TEXT NOT NULL DEFAULT ''`);
 await client.query(`ALTER TABLE "Funnel" ADD COLUMN IF NOT EXISTS "offerPrice" DOUBLE PRECISION NOT NULL DEFAULT 0`);
+await client.query(`ALTER TABLE "Funnel" ADD COLUMN IF NOT EXISTS "discountCode" TEXT NOT NULL DEFAULT ''`);
+await client.query(`ALTER TABLE "Funnel" ADD COLUMN IF NOT EXISTS "discountRuleId" TEXT NOT NULL DEFAULT ''`);
 
 console.log("Done! All columns added.");
 await client.end();

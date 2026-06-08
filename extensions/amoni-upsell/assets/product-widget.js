@@ -51,6 +51,7 @@
 
       var variantsToAdd = [funnel.offerVariantId];
       if (isCombined && triggerVariantId) variantsToAdd.push(triggerVariantId);
+      var discountCode = funnel.discountCode || '';
 
       var headingEl = document.getElementById('amoni-product-offer-heading');
       if (headingEl) headingEl.textContent = heading;
@@ -96,12 +97,20 @@
           })
             .then(function (r) {
               if (!r.ok) throw new Error('cart error');
-              btn.textContent = '✓ Added!';
-              btn.style.background = '#0c8a4f';
-              fetch(APP_URL + '/api/events', {
+              // Apply discount code then redirect to cart
+              var next = discountCode
+                ? fetch('/cart/update.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discount: discountCode }) })
+                : Promise.resolve();
+              return next.then(function () {
+                btn.textContent = '✓ Added!';
+                btn.style.background = '#0c8a4f';
+                fetch(APP_URL + '/api/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ funnelId: funnel.id, shop: shop, eventType: 'accept' }),
+                });
+                // Open cart drawer or navigate to cart after short delay
+                setTimeout(function () { window.location.href = '/cart'; }, 800);
               });
             })
             .catch(function () {

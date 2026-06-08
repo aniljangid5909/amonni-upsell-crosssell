@@ -49,6 +49,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     offerPrice: f.offerPrice,
     discountType: f.discountType,
     discountValue: f.discountValue,
+    discountCode: f.discountCode,
   }));
 
   return json({ funnels: result }, { headers: CORS });

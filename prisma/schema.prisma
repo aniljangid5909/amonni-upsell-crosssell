@@ -39,6 +39,8 @@ model Funnel {
   offerImageUrl     String   @default("")
   offerVariantId    String   @default("")
   offerPrice        Float    @default(0)
+  discountCode      String   @default("")
+  discountRuleId    String   @default("")
   discountType      String   @default("none")
   discountValue     Float    @default(0)
   minCartValue      Float    @default(0)
