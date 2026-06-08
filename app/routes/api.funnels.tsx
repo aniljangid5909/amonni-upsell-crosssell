@@ -42,6 +42,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   const result = matched.slice(0, 3).map((f) => ({
     id: f.id,
+    offerType: f.offerType,
     offerProductId: f.offerProductId,
     offerImageUrl: f.offerImageUrl,
     offerVariantId: f.offerVariantId,

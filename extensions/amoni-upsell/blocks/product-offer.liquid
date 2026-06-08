@@ -7,7 +7,7 @@
   data-trigger-price="{{ product.price | divided_by: 100.0 }}"
   data-trigger-variant-id="{{ product.selected_or_first_available_variant.id }}"
   style="display:none; background:#fff; border-radius:14px; padding:20px; box-shadow:0 8px 28px rgba(0,0,0,0.08); margin:20px 0;">
-  <div style="font-weight:700; font-size:15px; color:#1a1a1a; margin-bottom:4px;">Frequently bought together</div>
+  <div id="amoni-product-offer-heading" style="font-weight:700; font-size:15px; color:#1a1a1a; margin-bottom:4px;"></div>
   <div id="amoni-product-offer-content"></div>
 </div>
 <script src="{{ 'product-widget.js' | asset_url }}" defer></script>

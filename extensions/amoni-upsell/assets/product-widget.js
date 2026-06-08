@@ -32,6 +32,14 @@
         ? '<div style="font-size:12.5px;color:#888;margin-bottom:16px;">Save $' + funnel.discountValue + ' when added as a bundle</div>'
         : '';
 
+      var headingEl = document.getElementById('amoni-product-offer-heading');
+      if (headingEl) {
+        headingEl.textContent =
+          funnel.offerType === 'cross-sell' ? 'You might also like' :
+          funnel.offerType === 'upsell'     ? 'Upgrade your order' :
+                                              'Frequently bought together';
+      }
+
       var content = document.getElementById('amoni-product-offer-content');
       content.innerHTML =
         discountNote +
