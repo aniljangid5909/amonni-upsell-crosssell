@@ -25,7 +25,6 @@
           ? offerPrice - (parseFloat(funnel.discountValue) || 0)
           : offerPrice;
 
-      // Cross-sell / upsell: show only offer product price. Bundle: show combined total.
       var isCombined = type === 'bundle';
       var displayPrice = isCombined
         ? (triggerPrice + discountedPrice).toFixed(2)
@@ -50,10 +49,8 @@
         type === 'upsell'     ? 'Upgrade now' :
                                 'Add both to cart';
 
-      // For cross-sell / upsell only add the offer product; for bundle add both
-      var variantsToAdd = isCombined && triggerVariantId
-        ? [funnel.offerVariantId, triggerVariantId]
-        : [funnel.offerVariantId];
+      var variantsToAdd = [funnel.offerVariantId];
+      if (isCombined && triggerVariantId) variantsToAdd.push(triggerVariantId);
 
       var headingEl = document.getElementById('amoni-product-offer-heading');
       if (headingEl) headingEl.textContent = heading;
@@ -75,11 +72,44 @@
             '<div style="font-size:11.5px;color:#888;">' + priceLabel + '</div>' +
             '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">$' + displayPrice + '</div>' +
           '</div>' +
-          '<button onclick="amoniAddBundle(' + JSON.stringify(variantsToAdd) + ', this, \'' + funnel.id + '\', \'' + shop + '\', \'' + APP_URL + '\')"' +
-            ' style="padding:12px 22px;border-radius:10px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;">' +
+          '<button id="amoni-add-btn" style="padding:12px 22px;border-radius:10px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;">' +
             btnText +
           '</button>' +
         '</div>';
+
+      // Attach click handler via JS — avoids HTML attribute quoting issues
+      var btn = document.getElementById('amoni-add-btn');
+      if (btn) {
+        btn.addEventListener('click', function () {
+          var items = variantsToAdd.filter(Boolean).map(function (id) {
+            return { id: parseInt(id, 10), quantity: 1 };
+          });
+          if (!items.length) return;
+
+          btn.textContent = 'Adding...';
+          btn.disabled = true;
+
+          fetch('/cart/add.js', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items: items }),
+          })
+            .then(function (r) {
+              if (!r.ok) throw new Error('cart error');
+              btn.textContent = '✓ Added!';
+              btn.style.background = '#0c8a4f';
+              fetch(APP_URL + '/api/events', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ funnelId: funnel.id, shop: shop, eventType: 'accept' }),
+              });
+            })
+            .catch(function () {
+              btn.textContent = 'Error — try again';
+              btn.disabled = false;
+            });
+        });
+      }
 
       el.style.display = 'block';
 
@@ -90,28 +120,4 @@
       });
     })
     .catch(function () {});
-
-  window.amoniAddBundle = function (variantIds, btn, funnelId, shop, appUrl) {
-    btn.textContent = 'Adding...';
-    btn.disabled = true;
-
-    var items = variantIds.filter(Boolean).map(function (id) { return { id: id, quantity: 1 }; });
-    if (!items.length) { btn.textContent = 'Error'; return; }
-
-    fetch('/cart/add.js', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: items }),
-    })
-      .then(function () {
-        btn.textContent = '✓ Added!';
-        btn.style.background = '#0c8a4f';
-        fetch(appUrl + '/api/events', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ funnelId: funnelId, shop: shop, eventType: 'accept' }),
-        });
-      })
-      .catch(function () { btn.textContent = 'Error — try again'; btn.disabled = false; });
-  };
 })();
