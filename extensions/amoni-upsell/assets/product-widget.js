@@ -7,6 +7,7 @@
   var APP_URL = el.dataset.appUrl || 'https://amoni-upsell-cross-sell.vercel.app';
   var triggerImage = el.dataset.triggerImage || '';
   var triggerPrice = parseFloat(el.dataset.triggerPrice || '0');
+  var triggerVariantId = el.dataset.triggerVariantId || '';
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
     .then(function (r) { return r.json(); })
@@ -48,7 +49,7 @@
             '<div style="font-size:11.5px;color:#888;">Bundle total</div>' +
             '<div style="font-size:22px;font-weight:700;color:#1a1a1a;">$' + bundleTotal + '</div>' +
           '</div>' +
-          '<button onclick="amoniAddBundle(\'' + funnel.offerVariantId + '\', this, \'' + funnel.id + '\', \'' + shop + '\', \'' + APP_URL + '\')"' +
+          '<button onclick="amoniAddBundle(\'' + funnel.offerVariantId + '\', \'' + triggerVariantId + '\', this, \'' + funnel.id + '\', \'' + shop + '\', \'' + APP_URL + '\')"' +
             ' style="padding:12px 22px;border-radius:10px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;">' +
             'Add both to cart' +
           '</button>' +
@@ -64,14 +65,17 @@
     })
     .catch(function () {});
 
-  window.amoniAddBundle = function (variantId, btn, funnelId, shop, appUrl) {
+  window.amoniAddBundle = function (offerVariantId, triggerVariantId, btn, funnelId, shop, appUrl) {
     btn.textContent = 'Adding...';
     btn.disabled = true;
+
+    var items = [{ id: offerVariantId, quantity: 1 }];
+    if (triggerVariantId) items.push({ id: triggerVariantId, quantity: 1 });
 
     fetch('/cart/add.js', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: [{ id: variantId, quantity: 1 }] }),
+      body: JSON.stringify({ items: items }),
     })
       .then(function () {
         btn.textContent = '✓ Added!';
@@ -82,6 +86,6 @@
           body: JSON.stringify({ funnelId: funnelId, shop: shop, eventType: 'accept' }),
         });
       })
-      .catch(function () { btn.textContent = 'Error'; });
+      .catch(function () { btn.textContent = 'Error — try again'; btn.disabled = false; });
   };
 })();
