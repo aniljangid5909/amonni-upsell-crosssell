@@ -11,69 +11,63 @@
 
   // ── Cart drawer helper — works across Dawn, Horizon, and most Shopify themes ──
   function openCartDrawer() {
-    var drawer = document.querySelector('cart-drawer');
-
-    // Dawn / Horizon: cart-drawer custom element has open() which internally
-    // re-fetches cart data — do NOT replace the element or its JS is destroyed
-    if (drawer && typeof drawer.open === 'function') {
-      updateCartBadge();
-      drawer.open();
-      return;
-    }
-
-    // Themes without cart-drawer custom element: re-render via Sections API
-    // then reveal whatever drawer/panel element exists
-    fetch('/?sections=cart-drawer,cart-notification-product,cart-icon-bubble')
-      .then(function (r) { return r.json(); })
-      .then(function (sections) {
-        Object.keys(sections).forEach(function (key) {
-          var wrapper = document.getElementById('shopify-section-' + key);
-          if (!wrapper) return;
-          var tmp = document.createElement('div');
-          tmp.innerHTML = sections[key];
-          var updated = tmp.firstElementChild;
-          if (updated) wrapper.replaceWith(updated);
-        });
-      })
-      .catch(function () {})
-      .finally(function () {
-        updateCartBadge();
-        ['cart:refresh', 'cart:updated', 'cart:change', 'cart:open'].forEach(function (name) {
-          document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
-          window.dispatchEvent(new CustomEvent(name, { bubbles: true }));
-        });
-        setTimeout(revealCartPanel, 150);
-      });
-  }
-
-  function updateCartBadge() {
+    // Update badge in background
     fetch('/cart.js')
       .then(function (r) { return r.json(); })
       .then(function (cart) {
         document.querySelectorAll(
           'cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount, .cart-item-count'
         ).forEach(function (b) { b.textContent = cart.item_count; });
-      })
-      .catch(function () {});
+      }).catch(function () {});
+
+    // Fire cart events on both document and window
+    ['cart:refresh', 'cart:updated', 'cart:change', 'cart:open'].forEach(function (name) {
+      document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+      window.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+    });
+
+    // Try to open immediately, then at 300ms and 700ms
+    [0, 300, 700].forEach(function (delay) {
+      setTimeout(function () { doOpenCart(); }, delay);
+    });
   }
 
-  function revealCartPanel() {
-    // Generic slide-in panel themes
+  function doOpenCart() {
+    var drawer = document.querySelector('cart-drawer');
+
+    if (drawer) {
+      // Try every known method name
+      if (typeof drawer.open === 'function') { drawer.open(); }
+      else if (typeof drawer.show === 'function') { drawer.show(); }
+      else if (typeof drawer.openDrawer === 'function') { drawer.openDrawer(); }
+      else {
+        // Attribute/class reveal
+        drawer.setAttribute('open', '');
+        drawer.removeAttribute('hidden');
+        drawer.classList.add('is-open', 'active', 'open');
+      }
+      // Also dispatch event directly on the element (Horizon event-based open)
+      drawer.dispatchEvent(new CustomEvent('cart:open', { bubbles: true }));
+      return;
+    }
+
+    // No cart-drawer — try generic panel
     var panel = document.querySelector(
-      '[data-cart-drawer], [data-cart-sidebar], .cart-drawer, .cart-sidebar, ' +
-      '.mini-cart, #mini-cart, .offcanvas-cart, #offcanvas-cart, ' +
-      '.js-cart-drawer, .CartDrawer, #CartDrawer'
+      '[data-cart-drawer], .cart-drawer, .CartDrawer, #CartDrawer, ' +
+      '.cart-sidebar, .mini-cart, #mini-cart, .offcanvas-cart, .js-cart-drawer'
     );
     if (panel) {
-      panel.removeAttribute('hidden');
       panel.setAttribute('open', '');
+      panel.removeAttribute('hidden');
       panel.classList.add('active', 'is-open', 'open', 'drawer--open');
       return;
     }
-    // Last resort: click cart icon
+
+    // Universal fallback: click the cart icon button
     var cartBtn = document.querySelector(
       'cart-icon-bubble, [data-cart-drawer-toggle], [data-cart-toggle], ' +
-      '[aria-label*="cart" i], .header__icon--cart, .cart-icon, .cart__icon'
+      '[aria-label*="cart" i], .header__icon--cart, .cart-icon, .cart__icon, ' +
+      'a.cart-link, button.cart-btn'
     );
     if (cartBtn) cartBtn.click();
   }
