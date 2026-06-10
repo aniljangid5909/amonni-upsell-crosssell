@@ -9,6 +9,60 @@
   var triggerPrice = parseFloat(el.dataset.triggerPrice || '0');
   var triggerVariantId = el.dataset.triggerVariantId || '';
 
+  // ── Cart drawer helper — works across Dawn, Horizon, and most Shopify themes ──
+  function openCartDrawer() {
+    // 1. Dispatch events that themes listen to
+    ['cart:refresh', 'cart:updated', 'cart:change', 'cart:open'].forEach(function (name) {
+      document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+    });
+
+    // 2. Re-render cart sections via Shopify Sections API
+    fetch('/?sections=cart-drawer,cart-icon-bubble,cart-notification-button')
+      .then(function (r) { return r.json(); })
+      .then(function (sections) {
+        Object.keys(sections).forEach(function (key) {
+          var wrapper = document.getElementById('shopify-section-' + key);
+          if (!wrapper) return;
+          var tmp = document.createElement('div');
+          tmp.innerHTML = sections[key];
+          var updated = tmp.firstElementChild;
+          if (updated) wrapper.replaceWith(updated);
+        });
+
+        // 3. After re-render try to open drawer (Dawn / Horizon pattern)
+        var drawer = document.querySelector('cart-drawer');
+        if (drawer) {
+          if (typeof drawer.open === 'function') { drawer.open(); return; }
+          drawer.setAttribute('open', '');
+          drawer.removeAttribute('hidden');
+          drawer.classList.add('active', 'is-open', 'open');
+        }
+
+        // Fallback: click cart icon to open drawer
+        var cartBtn = document.querySelector(
+          'cart-icon-bubble, [data-cart-drawer-toggle], [aria-label*="art"], .cart-icon, .header__icon--cart'
+        );
+        if (cartBtn) cartBtn.click();
+      })
+      .catch(function () {
+        // Sections API failed — fallback: click cart icon
+        var cartBtn = document.querySelector(
+          'cart-icon-bubble, [data-cart-drawer-toggle], .cart-icon, .header__icon--cart'
+        );
+        if (cartBtn) cartBtn.click();
+      });
+
+    // 4. Update cart count badge from /cart.js
+    fetch('/cart.js')
+      .then(function (r) { return r.json(); })
+      .then(function (cart) {
+        document.querySelectorAll(
+          '[data-cart-count], .cart-count, #cart-count, .CartCount, .Header__CartCount'
+        ).forEach(function (el) { el.textContent = cart.item_count; });
+      })
+      .catch(function () {});
+  }
+
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
     .then(function (r) { return r.json(); })
     .then(function (data) {
@@ -43,10 +97,9 @@
           : '';
 
       var priceLabel = isCombined ? 'Bundle total' : 'Offer price';
-
       var btnText =
         type === 'cross-sell' ? 'Add to cart' :
-        type === 'upsell'     ? 'Upgrade now' :
+        type === 'upsell'     ? 'Upgrade now'  :
                                 'Add both to cart';
 
       var variantsToAdd = [funnel.offerVariantId];
@@ -57,7 +110,6 @@
       if (headingEl) headingEl.textContent = heading;
 
       var showTrigger = isCombined && triggerImage;
-
       var content = document.getElementById('amoni-product-offer-content');
       content.innerHTML =
         (subtext ? '<div style="font-size:12.5px;color:#888;margin-bottom:16px;">' + subtext + '</div>' : '') +
@@ -78,7 +130,6 @@
           '</button>' +
         '</div>';
 
-      // Attach click handler via JS — avoids HTML attribute quoting issues
       var btn = document.getElementById('amoni-add-btn');
       if (btn) {
         btn.addEventListener('click', function () {
@@ -97,21 +148,29 @@
           })
             .then(function (r) {
               if (!r.ok) throw new Error('cart error');
-              // Apply discount code then redirect to cart
+              // Apply discount code if present
               var next = discountCode
-                ? fetch('/cart/update.js', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ discount: discountCode }) })
+                ? fetch('/cart/update.js', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ discount: discountCode }),
+                  })
                 : Promise.resolve();
-              return next.then(function () {
-                btn.textContent = '✓ Added!';
-                btn.style.background = '#0c8a4f';
-                fetch(APP_URL + '/api/events', {
+              return next;
+            })
+            .then(function () {
+              btn.textContent = '✓ Added!';
+              btn.style.background = '#0c8a4f';
+
+              // Track acceptance
+              fetch(APP_URL + '/api/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ funnelId: funnel.id, shop: shop, eventType: 'accept' }),
-                });
-                // Open cart drawer or navigate to cart after short delay
-                setTimeout(function () { window.location.href = '/cart'; }, 800);
               });
+
+              // Open cart drawer immediately — no page reload needed
+              openCartDrawer();
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
@@ -122,6 +181,7 @@
 
       el.style.display = 'block';
 
+      // Track impression
       fetch(APP_URL + '/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
