@@ -215,12 +215,46 @@
       .catch(function () {});
   }
 
-  // Check on page load and after cart events
-  setTimeout(checkCart, 500);
-  ['cart:updated', 'cart:change', 'cart:refresh'].forEach(function (n) {
+  // Show on cart page, or when cart drawer is open on any page
+  // (product pages with product-offer block are excluded via isCartDrawerOpen check)
+  function isCartDrawerOpen() {
+    var d = document.querySelector('cart-drawer');
+    if (!d) return false;
+    if (d.hasAttribute('open')) return true;
+    if (d.getAttribute('aria-hidden') === 'false') return true;
+    if (d.classList.contains('is-open') || d.classList.contains('active')) return true;
+    var rect = d.getBoundingClientRect();
+    return rect.width > 0 && rect.left < window.innerWidth && rect.right > 0;
+  }
+
+  function isCartPage() {
+    return window.location.pathname === '/cart' ||
+           window.location.pathname.indexOf('/cart') === 0;
+  }
+
+  function shouldShow() {
+    return isCartPage() || isCartDrawerOpen();
+  }
+
+  // Poll every 800ms to detect cart drawer open/close
+  setInterval(function () {
+    if (!shouldShow()) {
+      bar.style.display = 'none';
+      lastHash = '';
+      closed = false;
+      return;
+    }
+    if (!closed) checkCart();
+  }, 800);
+
+  // Also trigger immediately on cart events
+  ['cart:updated', 'cart:change', 'cart:refresh', 'cart:open'].forEach(function (n) {
     document.addEventListener(n, function () { closed = false; setTimeout(checkCart, 300); });
     window.addEventListener(n, function () { closed = false; setTimeout(checkCart, 300); });
   });
+
+  // Initial check on cart page
+  if (isCartPage()) setTimeout(checkCart, 500);
 
 })();
 </script>
