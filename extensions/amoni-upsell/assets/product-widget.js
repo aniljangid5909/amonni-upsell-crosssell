@@ -11,69 +11,75 @@
 
   // ── Cart drawer helper — works across Dawn, Horizon, and most Shopify themes ──
   function openCartDrawer() {
-    // Update cart count badges
-    fetch('/cart.js')
+    // Step 1: Re-render cart sections with fresh data, then open drawer
+    fetch('/?sections=cart-drawer,cart-notification-product,cart-icon-bubble')
       .then(function (r) { return r.json(); })
-      .then(function (cart) {
-        document.querySelectorAll(
-          'cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount, .cart-item-count'
-        ).forEach(function (el) { el.textContent = cart.item_count; });
+      .then(function (sections) {
+        // Inject updated HTML for each section
+        Object.keys(sections).forEach(function (key) {
+          var wrapper = document.getElementById('shopify-section-' + key);
+          if (!wrapper) return;
+          var tmp = document.createElement('div');
+          tmp.innerHTML = sections[key];
+          var updated = tmp.firstElementChild;
+          if (updated) wrapper.replaceWith(updated);
+        });
       })
-      .catch(function () {});
+      .catch(function () {})
+      .finally(function () {
+        // Step 2: Update cart count badges
+        fetch('/cart.js')
+          .then(function (r) { return r.json(); })
+          .then(function (cart) {
+            document.querySelectorAll(
+              'cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount, .cart-item-count'
+            ).forEach(function (b) { b.textContent = cart.item_count; });
+          })
+          .catch(function () {});
 
-    // Dispatch all known cart events
-    ['cart:refresh', 'cart:updated', 'cart:change', 'cart:open'].forEach(function (name) {
-      document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
-      window.dispatchEvent(new CustomEvent(name, { bubbles: true }));
-    });
+        // Step 3: Fire all cart events themes listen to
+        ['cart:refresh', 'cart:updated', 'cart:change', 'cart:open'].forEach(function (name) {
+          document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+          window.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+        });
 
-    // Try opening immediately, then retry after delays to handle async theme init
-    [0, 200, 500].forEach(function (delay) {
-      setTimeout(function () { tryOpenDrawer(); }, delay);
-    });
+        // Step 4: Open the drawer — try immediately then retry at 200 / 500 ms
+        [0, 200, 500].forEach(function (delay) {
+          setTimeout(openDrawerElement, delay);
+        });
+      });
   }
 
-  function tryOpenDrawer() {
-    // 1. Dawn / Horizon: <cart-drawer> custom element with open() method
+  function openDrawerElement() {
+    // Dawn / Horizon — <cart-drawer> custom element
     var drawer = document.querySelector('cart-drawer');
     if (drawer) {
-      if (typeof drawer.open === 'function') {
-        drawer.open();
-        return true;
-      }
-      // Reveal-only themes
+      if (typeof drawer.open === 'function') { drawer.open(); return; }
       drawer.removeAttribute('hidden');
       drawer.setAttribute('open', '');
       drawer.classList.add('active', 'is-open', 'open');
-      return true;
+      return;
     }
 
-    // 2. Slide-in cart / mini-cart panels
+    // Other themes — generic panel selectors
     var panel = document.querySelector(
       '[data-cart-drawer], [data-cart-sidebar], .cart-drawer, .cart-sidebar, ' +
       '.mini-cart, #mini-cart, .offcanvas-cart, #offcanvas-cart, ' +
-      '.js-cart-drawer, .CartDrawer, #CartDrawer, .cart__container'
+      '.js-cart-drawer, .CartDrawer, #CartDrawer'
     );
     if (panel) {
       panel.removeAttribute('hidden');
       panel.setAttribute('open', '');
       panel.classList.add('active', 'is-open', 'open', 'drawer--open');
-      return true;
+      return;
     }
 
-    // 3. Click cart icon — universal fallback
+    // Last resort — click the cart icon to open whatever drawer the theme uses
     var cartBtn = document.querySelector(
       'cart-icon-bubble, [data-cart-drawer-toggle], [data-cart-toggle], ' +
-      '[aria-label*="cart" i], [aria-label*="Cart" i], ' +
-      '.header__icon--cart, .cart-icon, .cart__icon, ' +
-      'a[href="/cart"], .site-header__cart'
+      '[aria-label*="cart" i], .header__icon--cart, .cart-icon, .cart__icon'
     );
-    if (cartBtn) {
-      cartBtn.click();
-      return true;
-    }
-
-    return false;
+    if (cartBtn) cartBtn.click();
   }
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
