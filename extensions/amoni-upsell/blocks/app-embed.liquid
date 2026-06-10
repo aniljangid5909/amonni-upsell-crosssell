@@ -1,4 +1,4 @@
-{% comment %} Amoni Upsell — injects cart offer into cart drawer on every page {% endcomment %}
+{% comment %} Amoni Upsell — injects cart offer into cart drawer {% endcomment %}
 <div id="amoni-embed-root"
   data-shop="{{ shop.permanent_domain }}"
   data-app-url="https://amoni-upsell-cross-sell.vercel.app"
@@ -11,7 +11,26 @@
   var SHOP = root.dataset.shop;
   var APP_URL = root.dataset.appUrl;
   var WIDGET_ID = 'amoni-drawer-widget';
-  var injected = false;
+  var lastCartHash = '';
+  var isFetching = false;
+
+  // ── Check if cart drawer is currently visible ──
+  function isDrawerOpen() {
+    var d = document.querySelector('cart-drawer');
+    if (!d) return false;
+    if (d.hasAttribute('open')) return true;
+    if (d.getAttribute('aria-hidden') === 'false') return true;
+    if (d.getAttribute('aria-expanded') === 'true') return true;
+    if (d.classList.contains('is-open') || d.classList.contains('active') || d.classList.contains('open')) return true;
+    // Check computed visibility
+    var style = window.getComputedStyle(d);
+    if (style.display !== 'none' && style.visibility !== 'hidden' && parseFloat(style.opacity) > 0) {
+      // Check if it's actually on screen (not hidden off-screen)
+      var rect = d.getBoundingClientRect();
+      if (rect.right > 0 && rect.bottom > 0 && rect.left < window.innerWidth) return true;
+    }
+    return false;
+  }
 
   // ── Toast notification ──
   function showToast(title, imageUrl) {
@@ -39,16 +58,16 @@
         '</div>' +
       '</div>';
     document.body.appendChild(t);
-    document.getElementById('amoni-toast-close').onclick = function () { dismiss(t); };
-    setTimeout(function () { dismiss(t); }, 5000);
+    document.getElementById('amoni-toast-close').onclick = function () { dismissToast(t); };
+    setTimeout(function () { dismissToast(t); }, 5000);
   }
-  function dismiss(t) {
+
+  function dismissToast(t) {
     if (!t || !t.parentNode) return;
     t.style.animation = 'amoniOut 0.3s ease forwards';
     setTimeout(function () { if (t.parentNode) t.remove(); }, 300);
   }
 
-  // ── Refresh badge ──
   function refreshBadge() {
     fetch('/cart.js').then(function (r) { return r.json(); }).then(function (c) {
       document.querySelectorAll('cart-count,[data-cart-count],.cart-count,#cart-count,.CartCount,.cart-item-count')
@@ -60,13 +79,12 @@
     });
   }
 
-  // ── Build and inject the widget into a container ──
+  // ── Build widget HTML into container ──
   function buildWidget(container, funnel) {
     var offerPrice = parseFloat(funnel.offerPrice) || 0;
     var discounted =
       funnel.discountType === 'percent' ? offerPrice * (1 - (parseFloat(funnel.discountValue) || 0) / 100) :
-      funnel.discountType === 'fixed'   ? offerPrice - (parseFloat(funnel.discountValue) || 0) :
-      offerPrice;
+      funnel.discountType === 'fixed'   ? offerPrice - (parseFloat(funnel.discountValue) || 0) : offerPrice;
 
     var heading =
       funnel.offerType === 'cross-sell' ? 'You might also like' :
@@ -77,12 +95,14 @@
       funnel.discountType === 'percent' && funnel.discountValue > 0 ? 'Save ' + funnel.discountValue + '% on this offer' :
       funnel.discountType === 'fixed'   && funnel.discountValue > 0 ? 'Save $' + funnel.discountValue + ' on this offer' : '';
 
-    container.style.cssText = 'margin:12px;border:1.5px solid rgba(200,116,90,0.35);border-radius:12px;padding:14px;background:#fdf5f2;';
+    container.style.cssText = 'margin:0 0 12px 0;border:1.5px solid rgba(200,116,90,0.35);border-radius:12px;padding:14px;background:#fdf5f2;';
     container.innerHTML =
       '<div style="font-size:10.5px;font-weight:700;color:#b05e42;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">' + heading + '</div>' +
       (subtext ? '<div style="font-size:12px;color:#b05e42;margin-bottom:8px;">' + subtext + '</div>' : '') +
       '<div style="display:flex;gap:10px;align-items:center;">' +
-        (funnel.offerImageUrl ? '<img src="' + funnel.offerImageUrl + '" style="width:56px;height:56px;border-radius:9px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);flex-shrink:0;" />' : '<div style="width:56px;height:56px;border-radius:9px;background:#f0f0f0;flex-shrink:0;"></div>') +
+        (funnel.offerImageUrl
+          ? '<img src="' + funnel.offerImageUrl + '" style="width:56px;height:56px;border-radius:9px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);flex-shrink:0;" />'
+          : '<div style="width:56px;height:56px;border-radius:9px;background:#f0f0f0;flex-shrink:0;"></div>') +
         '<div style="flex:1;min-width:0;">' +
           '<div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (funnel.offerTitle || '') + '</div>' +
           '<div style="font-size:14px;font-weight:700;color:#1a1a1a;">' +
@@ -94,39 +114,37 @@
       '</div>';
 
     var btn = container.querySelector('#amoni-drawer-add-btn');
-    if (btn) {
-      btn.addEventListener('click', function () {
-        if (!funnel.offerVariantId) return;
-        btn.textContent = 'Adding...';
-        btn.disabled = true;
-        fetch('/cart/add.js', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: parseInt(funnel.offerVariantId, 10), quantity: 1 }),
-        })
-          .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
-          .then(function () {
-            if (funnel.discountCode) {
-              return fetch('/cart/update.js', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ discount: funnel.discountCode }),
-              });
-            }
-          })
-          .then(function () {
-            btn.textContent = '✓ Added!';
-            btn.style.background = '#0c8a4f';
-            fetch(APP_URL + '/api/events', {
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      if (!funnel.offerVariantId) return;
+      btn.textContent = 'Adding...';
+      btn.disabled = true;
+      fetch('/cart/add.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: parseInt(funnel.offerVariantId, 10), quantity: 1 }),
+      })
+        .then(function (r) { if (!r.ok) throw new Error(); })
+        .then(function () {
+          if (funnel.discountCode) {
+            return fetch('/cart/update.js', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'accept' }),
+              body: JSON.stringify({ discount: funnel.discountCode }),
             });
-            showToast(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
-            refreshBadge();
-          })
-          .catch(function () { btn.textContent = 'Error'; btn.disabled = false; });
-      });
-    }
+          }
+        })
+        .then(function () {
+          btn.textContent = '✓ Added!';
+          btn.style.background = '#0c8a4f';
+          fetch(APP_URL + '/api/events', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'accept' }),
+          });
+          showToast(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
+          refreshBadge();
+        })
+        .catch(function () { btn.textContent = 'Error'; btn.disabled = false; });
+    });
 
     fetch(APP_URL + '/api/events', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -134,84 +152,66 @@
     });
   }
 
-  // ── Inject widget into cart drawer ──
-  function injectIntoDrawer() {
-    var drawer = document.querySelector('cart-drawer');
-    if (!drawer) return;
+  // ── Inject or refresh widget in drawer ──
+  function tryInject() {
+    if (!isDrawerOpen()) return;
+    if (isFetching) return;
 
-    // Remove stale widget
-    var old = drawer.querySelector('#' + WIDGET_ID);
-    if (old) old.remove();
-    injected = false;
+    fetch('/cart.js')
+      .then(function (r) { return r.json(); })
+      .then(function (cart) {
+        var ids = (cart.items || []).map(function (i) { return String(i.product_id); });
+        var hash = ids.join(',');
+        // Already injected with same cart — skip
+        var existing = document.getElementById(WIDGET_ID);
+        if (existing && hash === lastCartHash) return;
+        if (existing) existing.remove();
+        if (!ids.length) return;
 
-    // Get current cart items
-    fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
-      var ids = (cart.items || []).map(function (i) { return String(i.product_id); });
-      if (!ids.length) return;
+        isFetching = true;
+        fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(SHOP) + '&placement=cart&productIds=' + hash)
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            isFetching = false;
+            var funnels = data.funnels || [];
+            if (!funnels.length) return;
+            if (!isDrawerOpen()) return; // drawer closed while fetching
 
-      fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(SHOP) + '&placement=cart&productIds=' + ids.join(','))
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-          var funnels = data.funnels || [];
-          if (!funnels.length) return;
+            var drawer = document.querySelector('cart-drawer');
+            if (!drawer) return;
 
-          var widget = document.createElement('div');
-          widget.id = WIDGET_ID;
-          buildWidget(widget, funnels[0]);
+            var widget = document.createElement('div');
+            widget.id = WIDGET_ID;
+            buildWidget(widget, funnels[0]);
 
-          // Insert before the checkout button area
-          var target =
-            drawer.querySelector('.cart-drawer__footer') ||
-            drawer.querySelector('[class*="footer"]') ||
-            drawer.querySelector('a[href*="checkout"]') ||
-            drawer.querySelector('button[name="checkout"]');
+            // Find best insertion point — before checkout / footer area
+            var insertBefore =
+              drawer.querySelector('.cart-drawer__footer') ||
+              drawer.querySelector('[class*="footer"]') ||
+              drawer.querySelector('a[href*="checkout"]') ||
+              drawer.querySelector('button[name="checkout"]') ||
+              drawer.querySelector('button[type="submit"]');
 
-          if (target && target.parentNode) {
-            target.parentNode.insertBefore(widget, target);
-          } else {
-            drawer.appendChild(widget);
-          }
-          injected = true;
-        }).catch(function () {});
-    }).catch(function () {});
+            if (insertBefore && insertBefore.parentNode) {
+              insertBefore.parentNode.insertBefore(widget, insertBefore);
+            } else {
+              drawer.appendChild(widget);
+            }
+            lastCartHash = hash;
+          })
+          .catch(function () { isFetching = false; });
+      })
+      .catch(function () {});
   }
 
-  // ── Watch for cart drawer opening ──
-  function watchDrawer() {
-    var drawer = document.querySelector('cart-drawer');
-    if (!drawer) {
-      // Retry if drawer not in DOM yet
-      setTimeout(watchDrawer, 800);
-      return;
-    }
+  // ── Poll every 600ms — most reliable across all themes ──
+  setInterval(tryInject, 600);
 
-    var observer = new MutationObserver(function (mutations) {
-      mutations.forEach(function (m) {
-        if (m.type === 'attributes') {
-          var isOpen = drawer.hasAttribute('open') ||
-                       drawer.classList.contains('is-open') ||
-                       drawer.classList.contains('active') ||
-                       drawer.getAttribute('aria-hidden') === 'false';
-          if (isOpen && !injected) {
-            setTimeout(injectIntoDrawer, 100);
-          }
-          if (!isOpen) { injected = false; }
-        }
-      });
-    });
+  // Also trigger on cart events for faster response
+  ['cart:open', 'cart:refresh', 'cart:updated'].forEach(function (name) {
+    document.addEventListener(name, function () { setTimeout(tryInject, 200); });
+  });
 
-    observer.observe(drawer, {
-      attributes: true,
-      attributeFilter: ['open', 'class', 'aria-hidden', 'hidden'],
-    });
-  }
-
-  // Start watching after DOM is ready
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', watchDrawer);
-  } else {
-    watchDrawer();
-  }
 })();
 </script>
 
