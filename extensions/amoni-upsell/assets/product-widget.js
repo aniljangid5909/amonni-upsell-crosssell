@@ -11,56 +11,62 @@
 
   // ── Cart drawer helper — works across Dawn, Horizon, and most Shopify themes ──
   function openCartDrawer() {
-    // 1. Dispatch events that themes listen to
-    ['cart:refresh', 'cart:updated', 'cart:change', 'cart:open'].forEach(function (name) {
-      document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
-    });
-
-    // 2. Re-render cart sections via Shopify Sections API
-    fetch('/?sections=cart-drawer,cart-icon-bubble,cart-notification-button')
-      .then(function (r) { return r.json(); })
-      .then(function (sections) {
-        Object.keys(sections).forEach(function (key) {
-          var wrapper = document.getElementById('shopify-section-' + key);
-          if (!wrapper) return;
-          var tmp = document.createElement('div');
-          tmp.innerHTML = sections[key];
-          var updated = tmp.firstElementChild;
-          if (updated) wrapper.replaceWith(updated);
-        });
-
-        // 3. After re-render try to open drawer (Dawn / Horizon pattern)
-        var drawer = document.querySelector('cart-drawer');
-        if (drawer) {
-          if (typeof drawer.open === 'function') { drawer.open(); return; }
-          drawer.setAttribute('open', '');
-          drawer.removeAttribute('hidden');
-          drawer.classList.add('active', 'is-open', 'open');
-        }
-
-        // Fallback: click cart icon to open drawer
-        var cartBtn = document.querySelector(
-          'cart-icon-bubble, [data-cart-drawer-toggle], [aria-label*="art"], .cart-icon, .header__icon--cart'
-        );
-        if (cartBtn) cartBtn.click();
-      })
-      .catch(function () {
-        // Sections API failed — fallback: click cart icon
-        var cartBtn = document.querySelector(
-          'cart-icon-bubble, [data-cart-drawer-toggle], .cart-icon, .header__icon--cart'
-        );
-        if (cartBtn) cartBtn.click();
-      });
-
-    // 4. Update cart count badge from /cart.js
+    // Step 1: Update cart count badge
     fetch('/cart.js')
       .then(function (r) { return r.json(); })
       .then(function (cart) {
         document.querySelectorAll(
-          '[data-cart-count], .cart-count, #cart-count, .CartCount, .Header__CartCount'
+          'cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount'
         ).forEach(function (el) { el.textContent = cart.item_count; });
       })
       .catch(function () {});
+
+    // Step 2: Dispatch events themes listen to
+    ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (name) {
+      document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+    });
+
+    // Step 3: Open the cart drawer
+    // Delay slightly so the theme's own fetch gets fresh data
+    setTimeout(function () {
+      var drawer = document.querySelector('cart-drawer');
+      if (drawer) {
+        // Dawn / Horizon: open() re-fetches content internally
+        if (typeof drawer.open === 'function') {
+          drawer.open();
+          return;
+        }
+        // Other themes: reveal the element
+        drawer.removeAttribute('hidden');
+        drawer.setAttribute('open', '');
+        drawer.classList.add('active', 'is-open', 'open');
+        return;
+      }
+
+      // Fallback: re-render via Sections API then open
+      fetch('/?sections=cart-drawer,cart-icon-bubble')
+        .then(function (r) { return r.json(); })
+        .then(function (sections) {
+          Object.keys(sections).forEach(function (key) {
+            var wrapper = document.getElementById('shopify-section-' + key);
+            if (!wrapper) return;
+            var tmp = document.createElement('div');
+            tmp.innerHTML = sections[key];
+            var updated = tmp.firstElementChild;
+            if (updated) wrapper.replaceWith(updated);
+          });
+          // Open after re-render
+          var d = document.querySelector('cart-drawer');
+          if (d && typeof d.open === 'function') d.open();
+        })
+        .catch(function () {
+          // Last resort: click cart icon
+          var cartBtn = document.querySelector(
+            'cart-icon-bubble, [data-cart-drawer-toggle], [aria-label*="art"], .header__icon--cart'
+          );
+          if (cartBtn) cartBtn.click();
+        });
+    }, 300);
   }
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
