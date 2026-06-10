@@ -77,9 +77,8 @@
     setTimeout(function () { if (toast.parentNode) toast.remove(); }, 300);
   }
 
-  // ── Also attempt to open the theme's native cart drawer ──
-  function tryOpenThemeCart() {
-    // Update cart count badge
+  // ── Update cart badge + fire refresh events (no drawer open attempt) ──
+  function refreshCartState() {
     fetch('/cart.js')
       .then(function (r) { return r.json(); })
       .then(function (cart) {
@@ -88,29 +87,10 @@
         ).forEach(function (b) { b.textContent = cart.item_count; });
       }).catch(function () {});
 
-    // Fire all known cart events
-    ['cart:refresh', 'cart:updated', 'cart:change', 'cart:open'].forEach(function (name) {
+    // Let the theme know the cart changed — it will update its own state
+    ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (name) {
       document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
       window.dispatchEvent(new CustomEvent(name, { bubbles: true }));
-    });
-
-    // Try at 0ms, 300ms, 600ms
-    [0, 300, 600].forEach(function (delay) {
-      setTimeout(function () {
-        var drawer = document.querySelector('cart-drawer');
-        if (drawer) {
-          if (typeof drawer.open === 'function') drawer.open();
-          else if (typeof drawer.show === 'function') drawer.show();
-          else { drawer.setAttribute('open', ''); drawer.removeAttribute('hidden'); drawer.classList.add('is-open', 'active', 'open'); }
-          drawer.dispatchEvent(new CustomEvent('cart:open', { bubbles: true }));
-          return;
-        }
-        var cartBtn = document.querySelector(
-          'cart-icon-bubble, [data-cart-drawer-toggle], [data-cart-toggle], ' +
-          '[aria-label*="cart" i], .header__icon--cart, .cart-icon, .cart__icon'
-        );
-        if (cartBtn) cartBtn.click();
-      }, delay);
     });
   }
 
@@ -221,8 +201,8 @@
               // Show built-in notification (always works on any theme)
               showCartNotification(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
 
-              // Also try to open the theme's native cart drawer
-              tryOpenThemeCart();
+              // Update badge + dispatch cart events (no drawer open — avoids double-toggle)
+              refreshCartState();
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
