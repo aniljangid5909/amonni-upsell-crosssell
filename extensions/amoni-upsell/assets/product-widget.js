@@ -33,43 +33,44 @@
   }
 
   function doOpenCart() {
+    var opened = false;
     var drawer = document.querySelector('cart-drawer');
 
     if (drawer) {
-      // Try every known method name
-      if (typeof drawer.open === 'function') { drawer.open(); }
-      else if (typeof drawer.show === 'function') { drawer.show(); }
-      else if (typeof drawer.openDrawer === 'function') { drawer.openDrawer(); }
+      // Try every known method
+      if (typeof drawer.open === 'function') { drawer.open(); opened = true; }
+      else if (typeof drawer.show === 'function') { drawer.show(); opened = true; }
+      else if (typeof drawer.openDrawer === 'function') { drawer.openDrawer(); opened = true; }
       else {
-        // Attribute/class reveal
         drawer.setAttribute('open', '');
         drawer.removeAttribute('hidden');
         drawer.classList.add('is-open', 'active', 'open');
       }
-      // Also dispatch event directly on the element (Horizon event-based open)
+      // Dispatch event on element itself (some themes use this)
       drawer.dispatchEvent(new CustomEvent('cart:open', { bubbles: true }));
-      return;
     }
 
-    // No cart-drawer — try generic panel
-    var panel = document.querySelector(
-      '[data-cart-drawer], .cart-drawer, .CartDrawer, #CartDrawer, ' +
-      '.cart-sidebar, .mini-cart, #mini-cart, .offcanvas-cart, .js-cart-drawer'
-    );
-    if (panel) {
-      panel.setAttribute('open', '');
-      panel.removeAttribute('hidden');
-      panel.classList.add('active', 'is-open', 'open', 'drawer--open');
-      return;
+    // Also try generic panel
+    if (!opened) {
+      var panel = document.querySelector(
+        '[data-cart-drawer], .cart-drawer, .CartDrawer, #CartDrawer, ' +
+        '.cart-sidebar, .mini-cart, #mini-cart, .offcanvas-cart, .js-cart-drawer'
+      );
+      if (panel) {
+        panel.setAttribute('open', '');
+        panel.removeAttribute('hidden');
+        panel.classList.add('active', 'is-open', 'open', 'drawer--open');
+        opened = true;
+      }
     }
 
-    // Universal fallback: click the cart icon button
+    // Always try clicking the cart icon as well — it is the most reliable
+    // trigger in Horizon and other event-driven themes
     var cartBtn = document.querySelector(
       'cart-icon-bubble, [data-cart-drawer-toggle], [data-cart-toggle], ' +
-      '[aria-label*="cart" i], .header__icon--cart, .cart-icon, .cart__icon, ' +
-      'a.cart-link, button.cart-btn'
+      '[aria-label*="cart" i], .header__icon--cart, .cart-icon, .cart__icon'
     );
-    if (cartBtn) cartBtn.click();
+    if (cartBtn && !opened) cartBtn.click();
   }
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
