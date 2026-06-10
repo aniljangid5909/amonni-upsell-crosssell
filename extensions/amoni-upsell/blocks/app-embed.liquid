@@ -1,20 +1,224 @@
-{% comment %} Amoni Upsell App Embed - enables global widget support {% endcomment %}
+{% comment %} Amoni Upsell — injects cart offer into cart drawer on every page {% endcomment %}
+<div id="amoni-embed-root"
+  data-shop="{{ shop.permanent_domain }}"
+  data-app-url="https://amoni-upsell-cross-sell.vercel.app"
+  style="display:none;"></div>
+
 <script>
-  window.AMONI_APP_URL = {{ block.settings.app_url | json }};
-  window.AMONI_SHOP = {{ shop.permanent_domain | json }};
+(function () {
+  var root = document.getElementById('amoni-embed-root');
+  if (!root) return;
+  var SHOP = root.dataset.shop;
+  var APP_URL = root.dataset.appUrl;
+  var WIDGET_ID = 'amoni-drawer-widget';
+  var injected = false;
+
+  // ── Toast notification ──
+  function showToast(title, imageUrl) {
+    var old = document.getElementById('amoni-cart-toast');
+    if (old) old.remove();
+    if (!document.getElementById('amoni-toast-style')) {
+      var s = document.createElement('style');
+      s.id = 'amoni-toast-style';
+      s.textContent =
+        '@keyframes amoniIn{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:translateY(0)}}' +
+        '@keyframes amoniOut{from{opacity:1}to{opacity:0;transform:translateY(-14px)}}';
+      document.head.appendChild(s);
+    }
+    var t = document.createElement('div');
+    t.id = 'amoni-cart-toast';
+    t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:2147483647;background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:16px 20px;display:flex;align-items:center;gap:14px;max-width:340px;width:calc(100vw - 40px);font-family:inherit;animation:amoniIn 0.3s ease;';
+    t.innerHTML =
+      (imageUrl ? '<img src="' + imageUrl + '" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;" />' : '<div style="width:52px;height:52px;border-radius:8px;background:#f0f0f0;flex-shrink:0;"></div>') +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:13px;color:#888;margin-bottom:2px;">Added to cart</div>' +
+        '<div style="font-size:14px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (title || 'Item') + '</div>' +
+        '<div style="display:flex;gap:8px;margin-top:8px;">' +
+          '<a href="/cart" style="flex:1;text-align:center;padding:7px 0;background:#1a1a1a;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">View cart</a>' +
+          '<button id="amoni-toast-close" style="flex:1;padding:7px 0;background:#f3f3f3;color:#333;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Continue</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(t);
+    document.getElementById('amoni-toast-close').onclick = function () { dismiss(t); };
+    setTimeout(function () { dismiss(t); }, 5000);
+  }
+  function dismiss(t) {
+    if (!t || !t.parentNode) return;
+    t.style.animation = 'amoniOut 0.3s ease forwards';
+    setTimeout(function () { if (t.parentNode) t.remove(); }, 300);
+  }
+
+  // ── Refresh badge ──
+  function refreshBadge() {
+    fetch('/cart.js').then(function (r) { return r.json(); }).then(function (c) {
+      document.querySelectorAll('cart-count,[data-cart-count],.cart-count,#cart-count,.CartCount,.cart-item-count')
+        .forEach(function (b) { b.textContent = c.item_count; });
+    }).catch(function () {});
+    ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (n) {
+      document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+      window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+    });
+  }
+
+  // ── Build and inject the widget into a container ──
+  function buildWidget(container, funnel) {
+    var offerPrice = parseFloat(funnel.offerPrice) || 0;
+    var discounted =
+      funnel.discountType === 'percent' ? offerPrice * (1 - (parseFloat(funnel.discountValue) || 0) / 100) :
+      funnel.discountType === 'fixed'   ? offerPrice - (parseFloat(funnel.discountValue) || 0) :
+      offerPrice;
+
+    var heading =
+      funnel.offerType === 'cross-sell' ? 'You might also like' :
+      funnel.offerType === 'upsell'     ? 'Upgrade your order'  :
+                                          'Frequently bought together';
+
+    var subtext =
+      funnel.discountType === 'percent' && funnel.discountValue > 0 ? 'Save ' + funnel.discountValue + '% on this offer' :
+      funnel.discountType === 'fixed'   && funnel.discountValue > 0 ? 'Save $' + funnel.discountValue + ' on this offer' : '';
+
+    container.style.cssText = 'margin:12px;border:1.5px solid rgba(200,116,90,0.35);border-radius:12px;padding:14px;background:#fdf5f2;';
+    container.innerHTML =
+      '<div style="font-size:10.5px;font-weight:700;color:#b05e42;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">' + heading + '</div>' +
+      (subtext ? '<div style="font-size:12px;color:#b05e42;margin-bottom:8px;">' + subtext + '</div>' : '') +
+      '<div style="display:flex;gap:10px;align-items:center;">' +
+        (funnel.offerImageUrl ? '<img src="' + funnel.offerImageUrl + '" style="width:56px;height:56px;border-radius:9px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);flex-shrink:0;" />' : '<div style="width:56px;height:56px;border-radius:9px;background:#f0f0f0;flex-shrink:0;"></div>') +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (funnel.offerTitle || '') + '</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#1a1a1a;">' +
+            '$' + discounted.toFixed(2) +
+            (funnel.discountValue > 0 ? '<span style="font-size:12px;color:#aaa;text-decoration:line-through;margin-left:5px;">$' + offerPrice.toFixed(2) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<button id="amoni-drawer-add-btn" style="padding:9px 14px;border-radius:8px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;">Add</button>' +
+      '</div>';
+
+    var btn = container.querySelector('#amoni-drawer-add-btn');
+    if (btn) {
+      btn.addEventListener('click', function () {
+        if (!funnel.offerVariantId) return;
+        btn.textContent = 'Adding...';
+        btn.disabled = true;
+        fetch('/cart/add.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: parseInt(funnel.offerVariantId, 10), quantity: 1 }),
+        })
+          .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+          .then(function () {
+            if (funnel.discountCode) {
+              return fetch('/cart/update.js', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ discount: funnel.discountCode }),
+              });
+            }
+          })
+          .then(function () {
+            btn.textContent = '✓ Added!';
+            btn.style.background = '#0c8a4f';
+            fetch(APP_URL + '/api/events', {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'accept' }),
+            });
+            showToast(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
+            refreshBadge();
+          })
+          .catch(function () { btn.textContent = 'Error'; btn.disabled = false; });
+      });
+    }
+
+    fetch(APP_URL + '/api/events', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'impression' }),
+    });
+  }
+
+  // ── Inject widget into cart drawer ──
+  function injectIntoDrawer() {
+    var drawer = document.querySelector('cart-drawer');
+    if (!drawer) return;
+
+    // Remove stale widget
+    var old = drawer.querySelector('#' + WIDGET_ID);
+    if (old) old.remove();
+    injected = false;
+
+    // Get current cart items
+    fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
+      var ids = (cart.items || []).map(function (i) { return String(i.product_id); });
+      if (!ids.length) return;
+
+      fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(SHOP) + '&placement=cart&productIds=' + ids.join(','))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          var funnels = data.funnels || [];
+          if (!funnels.length) return;
+
+          var widget = document.createElement('div');
+          widget.id = WIDGET_ID;
+          buildWidget(widget, funnels[0]);
+
+          // Insert before the checkout button area
+          var target =
+            drawer.querySelector('.cart-drawer__footer') ||
+            drawer.querySelector('[class*="footer"]') ||
+            drawer.querySelector('a[href*="checkout"]') ||
+            drawer.querySelector('button[name="checkout"]');
+
+          if (target && target.parentNode) {
+            target.parentNode.insertBefore(widget, target);
+          } else {
+            drawer.appendChild(widget);
+          }
+          injected = true;
+        }).catch(function () {});
+    }).catch(function () {});
+  }
+
+  // ── Watch for cart drawer opening ──
+  function watchDrawer() {
+    var drawer = document.querySelector('cart-drawer');
+    if (!drawer) {
+      // Retry if drawer not in DOM yet
+      setTimeout(watchDrawer, 800);
+      return;
+    }
+
+    var observer = new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        if (m.type === 'attributes') {
+          var isOpen = drawer.hasAttribute('open') ||
+                       drawer.classList.contains('is-open') ||
+                       drawer.classList.contains('active') ||
+                       drawer.getAttribute('aria-hidden') === 'false';
+          if (isOpen && !injected) {
+            setTimeout(injectIntoDrawer, 100);
+          }
+          if (!isOpen) { injected = false; }
+        }
+      });
+    });
+
+    observer.observe(drawer, {
+      attributes: true,
+      attributeFilter: ['open', 'class', 'aria-hidden', 'hidden'],
+    });
+  }
+
+  // Start watching after DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', watchDrawer);
+  } else {
+    watchDrawer();
+  }
+})();
 </script>
 
 {% schema %}
 {
   "name": "Amoni Upsell",
   "target": "body",
-  "settings": [
-    {
-      "type": "text",
-      "id": "app_url",
-      "label": "App URL",
-      "info": "Paste your Amoni Upsell app URL here (e.g. https://your-app.vercel.app)"
-    }
-  ]
+  "settings": []
 }
 {% endschema %}
