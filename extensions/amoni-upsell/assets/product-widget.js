@@ -11,11 +11,21 @@
 
   // ── Cart drawer helper — works across Dawn, Horizon, and most Shopify themes ──
   function openCartDrawer() {
-    // Step 1: Re-render cart sections with fresh data, then open drawer
+    var drawer = document.querySelector('cart-drawer');
+
+    // Dawn / Horizon: cart-drawer custom element has open() which internally
+    // re-fetches cart data — do NOT replace the element or its JS is destroyed
+    if (drawer && typeof drawer.open === 'function') {
+      updateCartBadge();
+      drawer.open();
+      return;
+    }
+
+    // Themes without cart-drawer custom element: re-render via Sections API
+    // then reveal whatever drawer/panel element exists
     fetch('/?sections=cart-drawer,cart-notification-product,cart-icon-bubble')
       .then(function (r) { return r.json(); })
       .then(function (sections) {
-        // Inject updated HTML for each section
         Object.keys(sections).forEach(function (key) {
           var wrapper = document.getElementById('shopify-section-' + key);
           if (!wrapper) return;
@@ -27,41 +37,28 @@
       })
       .catch(function () {})
       .finally(function () {
-        // Step 2: Update cart count badges
-        fetch('/cart.js')
-          .then(function (r) { return r.json(); })
-          .then(function (cart) {
-            document.querySelectorAll(
-              'cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount, .cart-item-count'
-            ).forEach(function (b) { b.textContent = cart.item_count; });
-          })
-          .catch(function () {});
-
-        // Step 3: Fire all cart events themes listen to
+        updateCartBadge();
         ['cart:refresh', 'cart:updated', 'cart:change', 'cart:open'].forEach(function (name) {
           document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
           window.dispatchEvent(new CustomEvent(name, { bubbles: true }));
         });
-
-        // Step 4: Open the drawer — try immediately then retry at 200 / 500 ms
-        [0, 200, 500].forEach(function (delay) {
-          setTimeout(openDrawerElement, delay);
-        });
+        setTimeout(revealCartPanel, 150);
       });
   }
 
-  function openDrawerElement() {
-    // Dawn / Horizon — <cart-drawer> custom element
-    var drawer = document.querySelector('cart-drawer');
-    if (drawer) {
-      if (typeof drawer.open === 'function') { drawer.open(); return; }
-      drawer.removeAttribute('hidden');
-      drawer.setAttribute('open', '');
-      drawer.classList.add('active', 'is-open', 'open');
-      return;
-    }
+  function updateCartBadge() {
+    fetch('/cart.js')
+      .then(function (r) { return r.json(); })
+      .then(function (cart) {
+        document.querySelectorAll(
+          'cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount, .cart-item-count'
+        ).forEach(function (b) { b.textContent = cart.item_count; });
+      })
+      .catch(function () {});
+  }
 
-    // Other themes — generic panel selectors
+  function revealCartPanel() {
+    // Generic slide-in panel themes
     var panel = document.querySelector(
       '[data-cart-drawer], [data-cart-sidebar], .cart-drawer, .cart-sidebar, ' +
       '.mini-cart, #mini-cart, .offcanvas-cart, #offcanvas-cart, ' +
@@ -73,8 +70,7 @@
       panel.classList.add('active', 'is-open', 'open', 'drawer--open');
       return;
     }
-
-    // Last resort — click the cart icon to open whatever drawer the theme uses
+    // Last resort: click cart icon
     var cartBtn = document.querySelector(
       'cart-icon-bubble, [data-cart-drawer-toggle], [data-cart-toggle], ' +
       '[aria-label*="cart" i], .header__icon--cart, .cart-icon, .cart__icon'
