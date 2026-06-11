@@ -215,57 +215,22 @@
       .catch(function () {});
   }
 
-  // Show on cart page, or when cart drawer is open on any page
-  // (product pages with product-offer block are excluded via isCartDrawerOpen check)
-  function isCartDrawerOpen() {
-    var d = document.querySelector('cart-drawer');
-    if (!d) return false;
-    if (d.hasAttribute('open')) return true;
-    if (d.getAttribute('aria-hidden') === 'false') return true;
-    if (d.classList.contains('is-open') || d.classList.contains('active')) return true;
-    var rect = d.getBoundingClientRect();
-    return rect.width > 0 && rect.left < window.innerWidth && rect.right > 0;
-  }
+  // Don't show on product pages — product-offer block handles those
+  var isProductPage = window.location.pathname.indexOf('/products/') !== -1;
+  if (isProductPage) return;
 
-  function isCartPage() {
-    return window.location.pathname === '/cart' ||
-           window.location.pathname.indexOf('/cart') === 0;
-  }
+  // Check cart immediately on load and after every cart event
+  setTimeout(checkCart, 600);
 
-  function shouldShow() {
-    return isCartPage() || isCartDrawerOpen();
-  }
-
-  // Trigger on cart icon click (most reliable way to detect drawer open)
-  document.addEventListener('click', function (e) {
-    var trigger = e.target.closest(
-      'cart-icon-bubble, [data-cart-drawer-toggle], [data-cart-toggle], ' +
-      '[aria-controls], a[href="/cart"], .header__icon--cart, .cart-icon'
-    );
-    if (trigger) {
-      closed = false;
-      setTimeout(checkCart, 400);
-      setTimeout(checkCart, 900);
-    }
-  }, true);
-
-  // Poll every 800ms to detect cart drawer open/close
-  setInterval(function () {
-    if (!shouldShow()) {
-      if (bar.style.display !== 'none') { bar.style.display = 'none'; lastHash = ''; closed = false; }
-      return;
-    }
-    if (!closed) checkCart();
-  }, 800);
-
-  // Also trigger immediately on cart events
   ['cart:updated', 'cart:change', 'cart:refresh', 'cart:open'].forEach(function (n) {
-    document.addEventListener(n, function () { closed = false; setTimeout(checkCart, 300); });
-    window.addEventListener(n, function () { closed = false; setTimeout(checkCart, 300); });
+    document.addEventListener(n, function () { closed = false; lastHash = ''; setTimeout(checkCart, 300); });
+    window.addEventListener(n, function () { closed = false; lastHash = ''; setTimeout(checkCart, 300); });
   });
 
-  // Initial check on cart page
-  if (isCartPage()) setTimeout(checkCart, 500);
+  // Re-check when user clicks anything (catches cart icon click)
+  document.addEventListener('click', function () {
+    setTimeout(function () { if (!closed) { lastHash = ''; checkCart(); } }, 500);
+  });
 
 })();
 </script>
