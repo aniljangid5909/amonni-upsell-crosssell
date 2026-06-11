@@ -236,12 +236,23 @@
     return isCartPage() || isCartDrawerOpen();
   }
 
+  // Trigger on cart icon click (most reliable way to detect drawer open)
+  document.addEventListener('click', function (e) {
+    var trigger = e.target.closest(
+      'cart-icon-bubble, [data-cart-drawer-toggle], [data-cart-toggle], ' +
+      '[aria-controls], a[href="/cart"], .header__icon--cart, .cart-icon'
+    );
+    if (trigger) {
+      closed = false;
+      setTimeout(checkCart, 400);
+      setTimeout(checkCart, 900);
+    }
+  }, true);
+
   // Poll every 800ms to detect cart drawer open/close
   setInterval(function () {
     if (!shouldShow()) {
-      bar.style.display = 'none';
-      lastHash = '';
-      closed = false;
+      if (bar.style.display !== 'none') { bar.style.display = 'none'; lastHash = ''; closed = false; }
       return;
     }
     if (!closed) checkCart();
