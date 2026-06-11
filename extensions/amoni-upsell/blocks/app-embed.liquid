@@ -140,8 +140,8 @@
   // ── Insert widget into the drawer ──
   function injectIntoDrawer(drawer, funnel) {
     if (isInjecting) return;
-    // Don't re-inject if already there
     if (drawer.querySelector('#' + WIDGET_ID)) return;
+    console.log('[Amoni] injecting widget, drawer children:', drawer.children.length);
 
     isInjecting = true;
     var widget = buildWidget(funnel);
@@ -175,6 +175,7 @@
       .then(function (r) { return r.json(); })
       .then(function (cart) {
         var ids = (cart.items || []).map(function (i) { return String(i.product_id); });
+        console.log('[Amoni] cart items:', ids);
         if (!ids.length) return;
         var hash = ids.join(',');
 
@@ -186,52 +187,66 @@
         fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(SHOP) + '&placement=cart&productIds=' + hash)
           .then(function (r) { return r.json(); })
           .then(function (data) {
+            console.log('[Amoni] funnels response:', data);
             var funnels = data.funnels || [];
-            if (!funnels.length) return;
+            if (!funnels.length) { console.log('[Amoni] no matching funnels'); return; }
             cachedFunnel = funnels[0];
             cachedCartHash = hash;
             injectIntoDrawer(drawer, cachedFunnel);
-          }).catch(function () {});
+          }).catch(function (e) { console.log('[Amoni] funnels error:', e); });
       }).catch(function () {});
   }
 
   // ── Watch cart-drawer for content changes (Horizon re-renders innerHTML) ──
   function watchDrawer(drawer) {
-    // Observe childList changes — fires when Horizon updates drawer content
+    console.log('[Amoni] cart-drawer found, watching...');
+
+    // Observe childList changes
     var observer = new MutationObserver(function () {
       clearTimeout(injectTimer);
       injectTimer = setTimeout(function () {
         if (!isInjecting) fetchAndInject(drawer);
       }, 80);
     });
+    observer.observe(drawer, { childList: true, subtree: true });
 
-    observer.observe(drawer, { childList: true, subtree: false });
-
-    // Also observe attributes to catch open/close
-    var attrObserver = new MutationObserver(function () {
+    // Observe attribute changes (open/close)
+    var attrObserver = new MutationObserver(function (mutations) {
+      mutations.forEach(function (m) {
+        console.log('[Amoni] attr changed:', m.attributeName, drawer.getAttribute(m.attributeName));
+      });
       clearTimeout(injectTimer);
       injectTimer = setTimeout(function () {
         if (!isInjecting) fetchAndInject(drawer);
       }, 80);
     });
-
     attrObserver.observe(drawer, { attributes: true });
 
-    // Try injecting immediately in case drawer is already open
+    // Also poll every second as fallback
+    setInterval(function () {
+      if (!drawer.querySelector('#' + WIDGET_ID)) {
+        fetchAndInject(drawer);
+      }
+    }, 1000);
+
+    // Try injecting immediately
     fetchAndInject(drawer);
   }
 
   // ── Start when DOM is ready ──
   function init() {
+    console.log('[Amoni] init, shop:', SHOP);
     var drawer = document.querySelector('cart-drawer');
+    console.log('[Amoni] cart-drawer on init:', drawer);
     if (drawer) {
       watchDrawer(drawer);
     } else {
-      // Wait for cart-drawer to appear in DOM
+      console.log('[Amoni] no cart-drawer found, watching body...');
       var bodyObserver = new MutationObserver(function () {
         var d = document.querySelector('cart-drawer');
         if (d) {
           bodyObserver.disconnect();
+          console.log('[Amoni] cart-drawer appeared in DOM');
           watchDrawer(d);
         }
       });
