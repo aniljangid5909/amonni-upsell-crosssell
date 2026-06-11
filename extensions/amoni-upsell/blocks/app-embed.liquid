@@ -1,71 +1,8 @@
-{% comment %} Amoni Upsell — cart offer bar (fixed bottom, theme-agnostic) {% endcomment %}
+{% comment %} Amoni Upsell — injects offer inside cart drawer {% endcomment %}
 <div id="amoni-embed-root"
   data-shop="{{ shop.permanent_domain }}"
   data-app-url="https://amoni-upsell-cross-sell.vercel.app"
   style="display:none;"></div>
-
-<style>
-#amoni-cart-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 2147483646;
-  background: #fff;
-  border-top: 1.5px solid rgba(200,116,90,0.3);
-  box-shadow: 0 -4px 24px rgba(0,0,0,0.10);
-  padding: 12px 16px;
-  display: none;
-  font-family: inherit;
-  animation: amoniBarIn 0.3s ease;
-}
-@keyframes amoniBarIn {
-  from { transform: translateY(100%); opacity: 0; }
-  to   { transform: translateY(0);    opacity: 1; }
-}
-#amoni-cart-bar .amoni-bar-inner {
-  max-width: 600px;
-  margin: 0 auto;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-#amoni-cart-bar .amoni-bar-close {
-  position: absolute;
-  top: 8px;
-  right: 12px;
-  background: none;
-  border: none;
-  font-size: 18px;
-  cursor: pointer;
-  color: #999;
-  line-height: 1;
-}
-#amoni-cart-toast {
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  z-index: 2147483647;
-  background: #fff;
-  border-radius: 14px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.18);
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  max-width: 340px;
-  width: calc(100vw - 40px);
-  font-family: inherit;
-  animation: amoniToastIn 0.3s ease;
-}
-@keyframes amoniToastIn  { from{opacity:0;transform:translateY(-14px)} to{opacity:1;transform:translateY(0)} }
-@keyframes amoniToastOut { from{opacity:1} to{opacity:0;transform:translateY(-14px)} }
-</style>
-
-<div id="amoni-cart-bar">
-  <button class="amoni-bar-close" id="amoni-bar-close-btn" aria-label="Close">&#x2715;</button>
-  <div class="amoni-bar-inner" id="amoni-bar-inner"></div>
-</div>
 
 <script>
 (function () {
@@ -73,23 +10,27 @@
   if (!root) return;
   var SHOP = root.dataset.shop;
   var APP_URL = root.dataset.appUrl;
-  var bar = document.getElementById('amoni-cart-bar');
-  var barInner = document.getElementById('amoni-bar-inner');
-  var lastHash = '';
-  var closed = false;
-  var isFetching = false;
+  var WIDGET_ID = 'amoni-drawer-offer';
+  var cachedFunnel = null;
+  var cachedCartHash = '';
+  var isInjecting = false;
+  var injectTimer = null;
 
-  document.getElementById('amoni-bar-close-btn').addEventListener('click', function () {
-    bar.style.display = 'none';
-    closed = true;
-  });
-
-  // ── Toast ──
+  // ── Toast notification ──
   function showToast(title, imageUrl) {
     var old = document.getElementById('amoni-cart-toast');
     if (old) old.remove();
+    if (!document.getElementById('amoni-toast-style')) {
+      var s = document.createElement('style');
+      s.id = 'amoni-toast-style';
+      s.textContent =
+        '@keyframes amoniIn{from{opacity:0;transform:translateY(-14px)}to{opacity:1;transform:translateY(0)}}' +
+        '@keyframes amoniOut{from{opacity:1}to{opacity:0;transform:translateY(-14px)}}';
+      document.head.appendChild(s);
+    }
     var t = document.createElement('div');
     t.id = 'amoni-cart-toast';
+    t.style.cssText = 'position:fixed;top:20px;right:20px;z-index:2147483647;background:#fff;border-radius:14px;box-shadow:0 8px 32px rgba(0,0,0,0.18);padding:16px 20px;display:flex;align-items:center;gap:14px;max-width:340px;width:calc(100vw - 40px);font-family:inherit;animation:amoniIn 0.3s ease;';
     t.innerHTML =
       (imageUrl ? '<img src="' + imageUrl + '" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;" />' : '<div style="width:52px;height:52px;border-radius:8px;background:#f0f0f0;flex-shrink:0;"></div>') +
       '<div style="flex:1;min-width:0;">' +
@@ -106,7 +47,7 @@
   }
   function dismissToast(t) {
     if (!t || !t.parentNode) return;
-    t.style.animation = 'amoniToastOut 0.3s ease forwards';
+    t.style.animation = 'amoniOut 0.3s ease forwards';
     setTimeout(function () { if (t.parentNode) t.remove(); }, 300);
   }
 
@@ -115,123 +56,194 @@
       document.querySelectorAll('cart-count,[data-cart-count],.cart-count,#cart-count,.CartCount,.cart-item-count')
         .forEach(function (b) { b.textContent = c.item_count; });
     }).catch(function () {});
-    ['cart:refresh','cart:updated','cart:change'].forEach(function (n) {
+    ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (n) {
       document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
       window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
     });
   }
 
-  // ── Render offer bar ──
-  function renderBar(funnel) {
+  // ── Build widget HTML and attach button listener ──
+  function buildWidget(funnel) {
     var offerPrice = parseFloat(funnel.offerPrice) || 0;
     var discounted =
       funnel.discountType === 'percent' ? offerPrice * (1 - (parseFloat(funnel.discountValue) || 0) / 100) :
       funnel.discountType === 'fixed'   ? offerPrice - (parseFloat(funnel.discountValue) || 0) : offerPrice;
 
-    var label =
+    var heading =
       funnel.offerType === 'cross-sell' ? 'You might also like' :
       funnel.offerType === 'upsell'     ? 'Upgrade your order'  :
                                           'Frequently bought together';
 
-    barInner.innerHTML =
-      (funnel.offerImageUrl ? '<img src="' + funnel.offerImageUrl + '" style="width:48px;height:48px;border-radius:8px;object-fit:cover;flex-shrink:0;border:1px solid rgba(0,0,0,0.08);" />' : '') +
-      '<div style="flex:1;min-width:0;">' +
-        '<div style="font-size:10px;font-weight:700;color:#b05e42;text-transform:uppercase;letter-spacing:0.04em;">' + label + '</div>' +
-        '<div style="font-size:13px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (funnel.offerTitle || '') + '</div>' +
-        '<div style="font-size:14px;font-weight:700;color:#1a1a1a;">' +
-          '$' + discounted.toFixed(2) +
-          (funnel.discountValue > 0 ? ' <span style="font-size:12px;color:#aaa;text-decoration:line-through;">$' + offerPrice.toFixed(2) + '</span>' : '') +
-        '</div>' +
-      '</div>' +
-      '<button id="amoni-bar-add-btn" style="padding:10px 18px;border-radius:10px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:14px;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;">' +
-        (funnel.offerType === 'upsell' ? 'Upgrade now' : funnel.offerType === 'cross-sell' ? 'Add to cart' : 'Add both') +
-      '</button>';
+    var subtext =
+      funnel.discountType === 'percent' && funnel.discountValue > 0 ? 'Save ' + funnel.discountValue + '% on this offer' :
+      funnel.discountType === 'fixed'   && funnel.discountValue > 0 ? 'Save $' + funnel.discountValue + ' on this offer' : '';
 
-    var btn = document.getElementById('amoni-bar-add-btn');
-    if (btn) {
-      btn.addEventListener('click', function () {
-        if (!funnel.offerVariantId) return;
-        btn.textContent = 'Adding...';
-        btn.disabled = true;
-        fetch('/cart/add.js', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: parseInt(funnel.offerVariantId, 10), quantity: 1 }),
-        })
-          .then(function (r) { if (!r.ok) throw new Error(); })
-          .then(function () {
-            if (funnel.discountCode) {
-              return fetch('/cart/update.js', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ discount: funnel.discountCode }),
-              });
-            }
-          })
-          .then(function () {
-            btn.textContent = '✓ Added!';
-            btn.style.background = '#0c8a4f';
-            fetch(APP_URL + '/api/events', {
+    var btnLabel =
+      funnel.offerType === 'cross-sell' ? 'Add to cart' :
+      funnel.offerType === 'upsell'     ? 'Upgrade now'  : 'Add both';
+
+    var wrapper = document.createElement('div');
+    wrapper.id = WIDGET_ID;
+    wrapper.style.cssText = 'padding:12px 16px;border-top:1px solid #f0f0f0;background:#fdf5f2;';
+    wrapper.innerHTML =
+      '<div style="font-size:10px;font-weight:700;color:#b05e42;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;">' + heading + '</div>' +
+      (subtext ? '<div style="font-size:12px;color:#b05e42;margin-bottom:8px;">' + subtext + '</div>' : '') +
+      '<div style="display:flex;gap:10px;align-items:center;">' +
+        (funnel.offerImageUrl
+          ? '<img src="' + funnel.offerImageUrl + '" style="width:52px;height:52px;border-radius:8px;object-fit:cover;border:1px solid rgba(0,0,0,0.08);flex-shrink:0;" />'
+          : '<div style="width:52px;height:52px;border-radius:8px;background:#e8e8e8;flex-shrink:0;"></div>') +
+        '<div style="flex:1;min-width:0;">' +
+          '<div style="font-size:13px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (funnel.offerTitle || '') + '</div>' +
+          '<div style="font-size:14px;font-weight:700;color:#1a1a1a;">' +
+            '$' + discounted.toFixed(2) +
+            (funnel.discountValue > 0 ? ' <span style="font-size:12px;color:#aaa;text-decoration:line-through;">$' + offerPrice.toFixed(2) + '</span>' : '') +
+          '</div>' +
+        '</div>' +
+        '<button data-amoni-add style="padding:9px 14px;border-radius:8px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;">' + btnLabel + '</button>' +
+      '</div>';
+
+    var btn = wrapper.querySelector('[data-amoni-add]');
+    btn.addEventListener('click', function () {
+      if (!funnel.offerVariantId) return;
+      btn.textContent = 'Adding...';
+      btn.disabled = true;
+      fetch('/cart/add.js', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: parseInt(funnel.offerVariantId, 10), quantity: 1 }),
+      })
+        .then(function (r) { if (!r.ok) throw new Error(); })
+        .then(function () {
+          if (funnel.discountCode) {
+            return fetch('/cart/update.js', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'accept' }),
+              body: JSON.stringify({ discount: funnel.discountCode }),
             });
-            showToast(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
-            refreshBadge();
-            // Hide bar after 2s
-            setTimeout(function () { bar.style.display = 'none'; }, 2000);
-          })
-          .catch(function () { btn.textContent = 'Error'; btn.disabled = false; });
-      });
+          }
+        })
+        .then(function () {
+          btn.textContent = '✓ Added!';
+          btn.style.background = '#0c8a4f';
+          fetch(APP_URL + '/api/events', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'accept' }),
+          });
+          showToast(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
+          refreshBadge();
+        })
+        .catch(function () { btn.textContent = 'Error'; btn.disabled = false; });
+    });
+
+    return wrapper;
+  }
+
+  // ── Insert widget into the drawer ──
+  function injectIntoDrawer(drawer, funnel) {
+    if (isInjecting) return;
+    // Don't re-inject if already there
+    if (drawer.querySelector('#' + WIDGET_ID)) return;
+
+    isInjecting = true;
+    var widget = buildWidget(funnel);
+
+    // Try known footer/checkout selectors first
+    var insertBefore =
+      drawer.querySelector('.cart-drawer__footer') ||
+      drawer.querySelector('[class*="cart-drawer__footer"]') ||
+      drawer.querySelector('[class*="footer"]') ||
+      drawer.querySelector('a[href*="/checkout"]') ||
+      drawer.querySelector('button[name="checkout"]') ||
+      drawer.querySelector('button[type="submit"]');
+
+    if (insertBefore && insertBefore.parentNode) {
+      insertBefore.parentNode.insertBefore(widget, insertBefore);
+    } else {
+      drawer.appendChild(widget);
     }
 
-    bar.style.display = 'block';
     fetch(APP_URL + '/api/events', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'impression' }),
     });
+
+    isInjecting = false;
   }
 
-  // ── Check cart and show/hide bar ──
-  function checkCart() {
-    if (closed || isFetching) return;
+  // ── Fetch funnel and inject ──
+  function fetchAndInject(drawer) {
     fetch('/cart.js')
       .then(function (r) { return r.json(); })
       .then(function (cart) {
         var ids = (cart.items || []).map(function (i) { return String(i.product_id); });
+        if (!ids.length) return;
         var hash = ids.join(',');
-        if (!ids.length) { bar.style.display = 'none'; lastHash = ''; return; }
-        if (hash === lastHash) return;
-        lastHash = hash;
-        isFetching = true;
+
+        if (cachedFunnel && hash === cachedCartHash) {
+          injectIntoDrawer(drawer, cachedFunnel);
+          return;
+        }
+
         fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(SHOP) + '&placement=cart&productIds=' + hash)
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            isFetching = false;
             var funnels = data.funnels || [];
-            if (!funnels.length) { bar.style.display = 'none'; return; }
-            renderBar(funnels[0]);
-          })
-          .catch(function () { isFetching = false; });
-      })
-      .catch(function () {});
+            if (!funnels.length) return;
+            cachedFunnel = funnels[0];
+            cachedCartHash = hash;
+            injectIntoDrawer(drawer, cachedFunnel);
+          }).catch(function () {});
+      }).catch(function () {});
   }
 
-  // Don't show on product pages — product-offer block handles those
-  var isProductPage = window.location.pathname.indexOf('/products/') !== -1;
-  if (isProductPage) return;
+  // ── Watch cart-drawer for content changes (Horizon re-renders innerHTML) ──
+  function watchDrawer(drawer) {
+    // Observe childList changes — fires when Horizon updates drawer content
+    var observer = new MutationObserver(function () {
+      clearTimeout(injectTimer);
+      injectTimer = setTimeout(function () {
+        if (!isInjecting) fetchAndInject(drawer);
+      }, 80);
+    });
 
-  // Check cart immediately on load and after every cart event
-  setTimeout(checkCart, 600);
+    observer.observe(drawer, { childList: true, subtree: false });
 
-  ['cart:updated', 'cart:change', 'cart:refresh', 'cart:open'].forEach(function (n) {
-    document.addEventListener(n, function () { closed = false; lastHash = ''; setTimeout(checkCart, 300); });
-    window.addEventListener(n, function () { closed = false; lastHash = ''; setTimeout(checkCart, 300); });
-  });
+    // Also observe attributes to catch open/close
+    var attrObserver = new MutationObserver(function () {
+      clearTimeout(injectTimer);
+      injectTimer = setTimeout(function () {
+        if (!isInjecting) fetchAndInject(drawer);
+      }, 80);
+    });
 
-  // Re-check when user clicks anything (catches cart icon click)
-  document.addEventListener('click', function () {
-    setTimeout(function () { if (!closed) { lastHash = ''; checkCart(); } }, 500);
-  });
+    attrObserver.observe(drawer, { attributes: true });
 
+    // Try injecting immediately in case drawer is already open
+    fetchAndInject(drawer);
+  }
+
+  // ── Start when DOM is ready ──
+  function init() {
+    var drawer = document.querySelector('cart-drawer');
+    if (drawer) {
+      watchDrawer(drawer);
+    } else {
+      // Wait for cart-drawer to appear in DOM
+      var bodyObserver = new MutationObserver(function () {
+        var d = document.querySelector('cart-drawer');
+        if (d) {
+          bodyObserver.disconnect();
+          watchDrawer(d);
+        }
+      });
+      bodyObserver.observe(document.body, { childList: true, subtree: true });
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
 })();
 </script>
 
