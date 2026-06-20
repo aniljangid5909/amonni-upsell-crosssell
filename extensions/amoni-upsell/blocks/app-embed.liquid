@@ -60,20 +60,25 @@
 
     // Try Horizon section re-render: fetch updated cart HTML and swap cart-items content
     var cartComp = document.querySelector('[data-cart-drawer]');
-    var sectionId = cartComp && cartComp.dataset.sectionId;
-    if (sectionId) {
-      fetch('/?sections=' + encodeURIComponent(sectionId))
+    var rawSectionId = cartComp && cartComp.dataset.sectionId;
+    // data-section-id is "sections--12345__handle" — Shopify /?sections= needs just "handle"
+    var sectionHandle = rawSectionId ? rawSectionId.replace(/^.*?__/, '') : null;
+    console.error('[AMONI UPSELL] section handle=' + sectionHandle);
+    if (sectionHandle) {
+      fetch('/?sections=' + encodeURIComponent(sectionHandle))
         .then(function (r) { return r.json(); })
         .then(function (sections) {
-          var html = sections[sectionId];
+          var html = sections[sectionHandle];
+          console.error('[AMONI UPSELL] section html length=' + (html ? html.length : 'null'));
           if (!html) return;
           var tmp = document.createElement('div');
           tmp.innerHTML = html;
           // Replace the cart items wrapper with freshly-rendered content
-          var newWrap = tmp.querySelector('[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"]');
-          var oldWrap = document.querySelector('[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"]');
+          var newWrap = tmp.querySelector('[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],.cart-items,[class*="CartItems"]');
+          var oldWrap = document.querySelector('[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],.cart-items,[class*="CartItems"]');
+          console.error('[AMONI UPSELL] newWrap=' + (newWrap ? newWrap.className : 'null') + ' oldWrap=' + (oldWrap ? oldWrap.className : 'null'));
           if (newWrap && oldWrap) oldWrap.innerHTML = newWrap.innerHTML;
-        }).catch(function () {});
+        }).catch(function (e) { console.error('[AMONI UPSELL] section fetch error: ' + e); });
     }
 
     // Dispatch generic cart events for other theme listeners
@@ -81,7 +86,6 @@
       document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
       window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
     });
-    // Also dispatch on the cart component directly
     if (cartComp) {
       ['cart:refresh', 'cart:updated'].forEach(function (n) {
         cartComp.dispatchEvent(new CustomEvent(n, { bubbles: true }));
