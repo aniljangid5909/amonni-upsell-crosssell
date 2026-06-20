@@ -137,7 +137,7 @@
     return wrapper;
   }
 
-  // ── Insert widget into the drawer ──
+  // ── Insert widget above the Discount/footer area ──
   function injectIntoDrawer(drawer, funnel) {
     if (isInjecting) return;
     if (drawer.querySelector('#' + WIDGET_ID)) return;
@@ -146,19 +146,26 @@
     isInjecting = true;
     var widget = buildWidget(funnel);
 
-    // Try known footer/checkout selectors first
+    // Find "Discount" row or footer — insert our widget just before it
     var insertBefore =
+      drawer.querySelector('[id*="discount" i]') ||
+      drawer.querySelector('[class*="discount" i]') ||
+      drawer.querySelector('details') ||            // Horizon uses <details> for discount
       drawer.querySelector('.cart-drawer__footer') ||
-      drawer.querySelector('[class*="cart-drawer__footer"]') ||
       drawer.querySelector('[class*="footer"]') ||
       drawer.querySelector('a[href*="/checkout"]') ||
       drawer.querySelector('button[name="checkout"]') ||
       drawer.querySelector('button[type="submit"]');
 
+    console.error('[AMONI UPSELL] insertBefore=' + (insertBefore ? insertBefore.tagName + ' ' + (insertBefore.id || insertBefore.className).substring(0,40) : 'null'));
+
     if (insertBefore && insertBefore.parentNode) {
       insertBefore.parentNode.insertBefore(widget, insertBefore);
     } else {
-      drawer.appendChild(widget);
+      // Fallback: append to last child of drawer (footer area)
+      var last = drawer.lastElementChild;
+      if (last) last.insertAdjacentElement('beforebegin', widget);
+      else drawer.appendChild(widget);
     }
 
     fetch(APP_URL + '/api/events', {
@@ -221,6 +228,19 @@
       }, 80);
     });
     attrObserver.observe(drawer, { attributes: true });
+
+    // Reset cached hash on cart changes so widget re-evaluates immediately
+    ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (n) {
+      document.addEventListener(n, function () {
+        cachedCartHash = '';
+        clearTimeout(injectTimer);
+        var existing = drawer.querySelector('#' + WIDGET_ID);
+        if (existing) existing.remove();
+        injectTimer = setTimeout(function () {
+          if (!isInjecting) fetchAndInject(drawer);
+        }, 300);
+      });
+    });
 
     // Also poll every second as fallback
     setInterval(function () {
