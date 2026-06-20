@@ -58,39 +58,55 @@
         .forEach(function (b) { b.textContent = c.item_count; });
     }).catch(function () {});
 
-    // Try Horizon section re-render: fetch updated cart HTML and swap cart-items content
-    var cartComp = document.querySelector('[data-cart-drawer]');
+    // Try Horizon section re-render
+    var cartComp = document.querySelector('cart-items-component[data-section-id]') ||
+                   document.querySelector('[data-cart-drawer][data-section-id]');
     var rawSectionId = cartComp && cartComp.dataset.sectionId;
-    // data-section-id is "sections--12345__handle" — Shopify /?sections= needs just "handle"
-    var sectionHandle = rawSectionId ? rawSectionId.replace(/^.*?__/, '') : null;
-    console.error('[AMONI UPSELL] section handle=' + sectionHandle);
-    if (sectionHandle) {
-      fetch('/?sections=' + encodeURIComponent(sectionHandle))
+    // data-section-id = "sections--12345__handle" → extract "handle" for /?sections= API
+    var sectionHandle = rawSectionId ? rawSectionId.replace(/^[^_]*__/, '') : null;
+    // Fallback: try known Horizon/common section handles
+    var handles = sectionHandle ? [sectionHandle] : ['cart-drawer', 'header', 'cart'];
+    console.error('[AMONI UPSELL] refreshing cart, handle=' + handles[0]);
+
+    (function tryNextHandle(i) {
+      if (i >= handles.length) {
+        // All section fetches failed — close and reopen cart drawer to force Horizon re-render
+        var dialog = document.querySelector('dialog[class*="cart"],dialog[id*="cart"],.dialog-drawer[open]');
+        if (dialog && dialog.open) {
+          dialog.close();
+          setTimeout(function () {
+            var openBtn = document.querySelector('[aria-controls$="cart"],[aria-controls*="CartDrawer"],[data-cart-toggle]');
+            if (!openBtn) openBtn = document.querySelector('a[href="/cart"]');
+            if (openBtn) openBtn.click();
+          }, 200);
+        }
+        return;
+      }
+      fetch('/?sections=' + encodeURIComponent(handles[i]))
         .then(function (r) { return r.json(); })
         .then(function (sections) {
-          var html = sections[sectionHandle];
-          console.error('[AMONI UPSELL] section html length=' + (html ? html.length : 'null'));
-          if (!html) return;
+          var html = sections[handles[i]];
+          if (!html) { tryNextHandle(i + 1); return; }
           var tmp = document.createElement('div');
           tmp.innerHTML = html;
-          // Replace the cart items wrapper with freshly-rendered content
-          var newWrap = tmp.querySelector('[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],.cart-items,[class*="CartItems"]');
-          var oldWrap = document.querySelector('[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],.cart-items,[class*="CartItems"]');
-          console.error('[AMONI UPSELL] newWrap=' + (newWrap ? newWrap.className : 'null') + ' oldWrap=' + (oldWrap ? oldWrap.className : 'null'));
-          if (newWrap && oldWrap) oldWrap.innerHTML = newWrap.innerHTML;
-        }).catch(function (e) { console.error('[AMONI UPSELL] section fetch error: ' + e); });
-    }
+          var sel = '[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"],.cart-items__wrapper';
+          var newWrap = tmp.querySelector(sel);
+          var oldWrap = document.querySelector(sel);
+          if (newWrap && oldWrap) {
+            oldWrap.innerHTML = newWrap.innerHTML;
+            console.error('[AMONI UPSELL] cart items re-rendered via section=' + handles[i]);
+          } else {
+            tryNextHandle(i + 1);
+          }
+        }).catch(function () { tryNextHandle(i + 1); });
+    })(0);
 
-    // Dispatch generic cart events for other theme listeners
+    // Dispatch generic cart events
     ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (n) {
       document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
       window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
     });
-    if (cartComp) {
-      ['cart:refresh', 'cart:updated'].forEach(function (n) {
-        cartComp.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-      });
-    }
+    if (cartComp) cartComp.dispatchEvent(new CustomEvent('cart:refresh', { bubbles: true }));
   }
 
   // ── Build widget HTML and attach button listener ──
