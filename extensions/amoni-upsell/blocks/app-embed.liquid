@@ -141,31 +141,34 @@
   function injectIntoDrawer(drawer, funnel) {
     if (isInjecting) return;
     if (drawer.querySelector('#' + WIDGET_ID)) return;
-    console.error('[AMONI UPSELL] injecting widget, drawer children=' + drawer.children.length);
 
-    isInjecting = true;
-    var widget = buildWidget(funnel);
-
-    // Find "Discount" row or footer — insert our widget just before it
-    var insertBefore =
+    // Find the footer/discount anchor — bail if not ready yet (drawer still loading)
+    var footer =
+      drawer.querySelector('cart-drawer-footer') ||
+      drawer.querySelector('[class*="cart-drawer__footer"]') ||
+      drawer.querySelector('[class*="CartDrawer__Footer"]') ||
       drawer.querySelector('[id*="discount" i]') ||
       drawer.querySelector('[class*="discount" i]') ||
-      drawer.querySelector('details') ||            // Horizon uses <details> for discount
-      drawer.querySelector('.cart-drawer__footer') ||
+      drawer.querySelector('details') ||
       drawer.querySelector('[class*="footer"]') ||
+      drawer.querySelector('a[href="/checkout"]') ||
       drawer.querySelector('a[href*="/checkout"]') ||
       drawer.querySelector('button[name="checkout"]') ||
       drawer.querySelector('button[type="submit"]');
 
-    console.error('[AMONI UPSELL] insertBefore=' + (insertBefore ? insertBefore.tagName + ' ' + (insertBefore.id || insertBefore.className).substring(0,40) : 'null'));
+    console.error('[AMONI UPSELL] footer anchor=' + (footer ? footer.tagName + '#' + footer.id + '.' + (typeof footer.className === 'string' ? footer.className : '').substring(0,30) : 'null') + ' children=' + drawer.children.length);
 
-    if (insertBefore && insertBefore.parentNode) {
-      insertBefore.parentNode.insertBefore(widget, insertBefore);
+    // If footer not found yet, wait for more DOM changes via MutationObserver
+    if (!footer) return;
+
+    isInjecting = true;
+    var widget = buildWidget(funnel);
+
+    // Insert before the footer container (puts widget between items list and footer)
+    if (footer.parentNode) {
+      footer.parentNode.insertBefore(widget, footer);
     } else {
-      // Fallback: append to last child of drawer (footer area)
-      var last = drawer.lastElementChild;
-      if (last) last.insertAdjacentElement('beforebegin', widget);
-      else drawer.appendChild(widget);
+      drawer.appendChild(widget);
     }
 
     fetch(APP_URL + '/api/events', {
