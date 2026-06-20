@@ -256,7 +256,8 @@
 
     // Also poll every second as fallback
     setInterval(function () {
-      if (!drawer.querySelector('#' + WIDGET_ID)) {
+      var root = drawer.parentNode || drawer;
+      if (!root.querySelector('#' + WIDGET_ID)) {
         fetchAndInject(drawer);
       }
     }, 1000);
@@ -281,11 +282,23 @@
       'aside[id*="cart"]',
       'section[id*="cart"]',
     ];
+    // Words that indicate a sub-element, not the main drawer container
+    var SKIP = ['header', 'toggle', 'trigger', 'overlay', 'backdrop', 'button', 'icon', 'link', 'close', 'open'];
     for (var i = 0; i < selectors.length; i++) {
-      var el = document.querySelector(selectors[i]);
-      if (el) {
-        console.error('[AMONI UPSELL] cart element found: ' + selectors[i] + ' tag=' + el.tagName + ' id=' + el.id + ' class=' + el.className.substring(0, 60));
-        return el;
+      var els = document.querySelectorAll(selectors[i]);
+      for (var j = 0; j < els.length; j++) {
+        var el = els[j];
+        var id = (el.id || '').toLowerCase();
+        var cls = (typeof el.className === 'string' ? el.className : '').toLowerCase();
+        var combined = id + ' ' + cls;
+        var skip = false;
+        for (var k = 0; k < SKIP.length; k++) {
+          if (combined.indexOf(SKIP[k]) !== -1) { skip = true; break; }
+        }
+        if (!skip) {
+          console.error('[AMONI UPSELL] cart element found: ' + selectors[i] + ' tag=' + el.tagName + ' id=' + el.id + ' class=' + cls.substring(0, 60));
+          return el;
+        }
       }
     }
     return null;
