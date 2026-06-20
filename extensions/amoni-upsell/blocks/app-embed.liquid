@@ -141,7 +141,7 @@
   function injectIntoDrawer(drawer, funnel) {
     if (isInjecting) return;
     if (drawer.querySelector('#' + WIDGET_ID)) return;
-    console.log('[Amoni] injecting widget, drawer children:', drawer.children.length);
+    console.error('[AMONI UPSELL] injecting widget, drawer children=' + drawer.children.length);
 
     isInjecting = true;
     var widget = buildWidget(funnel);
@@ -175,7 +175,7 @@
       .then(function (r) { return r.json(); })
       .then(function (cart) {
         var ids = (cart.items || []).map(function (i) { return String(i.product_id); });
-        console.log('[Amoni] cart items:', ids);
+        console.error('[AMONI UPSELL] cart items=' + JSON.stringify(ids));
         if (!ids.length) return;
         var hash = ids.join(',');
 
@@ -187,19 +187,19 @@
         fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(SHOP) + '&placement=cart&productIds=' + hash)
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            console.log('[Amoni] funnels response:', data);
+            console.error('[AMONI UPSELL] funnels=' + JSON.stringify(data.funnels ? data.funnels.length : 'none'));
             var funnels = data.funnels || [];
-            if (!funnels.length) { console.log('[Amoni] no matching funnels'); return; }
+            if (!funnels.length) return;
             cachedFunnel = funnels[0];
             cachedCartHash = hash;
             injectIntoDrawer(drawer, cachedFunnel);
-          }).catch(function (e) { console.log('[Amoni] funnels error:', e); });
+          }).catch(function (e) { console.error('[AMONI UPSELL] funnels error: ' + e); });
       }).catch(function () {});
   }
 
   // ── Watch cart-drawer for content changes (Horizon re-renders innerHTML) ──
   function watchDrawer(drawer) {
-    console.log('[Amoni] cart-drawer found, watching...');
+    console.error('[AMONI UPSELL] watching cart-drawer...');
 
     // Observe childList changes
     var observer = new MutationObserver(function () {
@@ -235,18 +235,17 @@
 
   // ── Start when DOM is ready ──
   function init() {
-    console.log('[Amoni] init, shop:', SHOP);
+    console.error('[AMONI UPSELL] script running, shop=' + SHOP);
     var drawer = document.querySelector('cart-drawer');
-    console.log('[Amoni] cart-drawer on init:', drawer);
+    console.error('[AMONI UPSELL] cart-drawer element=' + (drawer ? 'FOUND' : 'NOT FOUND'));
     if (drawer) {
       watchDrawer(drawer);
     } else {
-      console.log('[Amoni] no cart-drawer found, watching body...');
       var bodyObserver = new MutationObserver(function () {
         var d = document.querySelector('cart-drawer');
         if (d) {
           bodyObserver.disconnect();
-          console.log('[Amoni] cart-drawer appeared in DOM');
+          console.error('[AMONI UPSELL] cart-drawer appeared in DOM');
           watchDrawer(d);
         }
       });
