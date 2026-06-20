@@ -167,7 +167,9 @@
     var widget = buildWidget(funnel);
 
     // Insert before the footer (puts widget between cart items and discount/checkout)
-    footer.parentNode.insertBefore(widget, footer);
+    var footerParent = footer.parentNode;
+    footerParent.insertBefore(widget, footer);
+    console.error('[AMONI UPSELL] widget inserted before ' + footer.id + ' inside ' + footerParent.tagName + '#' + footerParent.id + ' inDOM=' + !!document.getElementById(WIDGET_ID));
 
     fetch(APP_URL + '/api/events', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
