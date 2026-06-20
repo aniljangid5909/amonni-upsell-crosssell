@@ -52,14 +52,41 @@
   }
 
   function refreshBadge() {
+    // Update cart badge count
     fetch('/cart.js').then(function (r) { return r.json(); }).then(function (c) {
       document.querySelectorAll('cart-count,[data-cart-count],.cart-count,#cart-count,.CartCount,.cart-item-count')
         .forEach(function (b) { b.textContent = c.item_count; });
     }).catch(function () {});
+
+    // Try Horizon section re-render: fetch updated cart HTML and swap cart-items content
+    var cartComp = document.querySelector('[data-cart-drawer]');
+    var sectionId = cartComp && cartComp.dataset.sectionId;
+    if (sectionId) {
+      fetch('/?sections=' + encodeURIComponent(sectionId))
+        .then(function (r) { return r.json(); })
+        .then(function (sections) {
+          var html = sections[sectionId];
+          if (!html) return;
+          var tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          // Replace the cart items wrapper with freshly-rendered content
+          var newWrap = tmp.querySelector('[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"]');
+          var oldWrap = document.querySelector('[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"]');
+          if (newWrap && oldWrap) oldWrap.innerHTML = newWrap.innerHTML;
+        }).catch(function () {});
+    }
+
+    // Dispatch generic cart events for other theme listeners
     ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (n) {
       document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
       window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
     });
+    // Also dispatch on the cart component directly
+    if (cartComp) {
+      ['cart:refresh', 'cart:updated'].forEach(function (n) {
+        cartComp.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+      });
+    }
   }
 
   // ── Build widget HTML and attach button listener ──
