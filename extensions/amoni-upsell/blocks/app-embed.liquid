@@ -205,50 +205,51 @@
       }).catch(function () {});
   }
 
-  // ── Watch cart-drawer for content changes (Horizon re-renders innerHTML) ──
+  // ── Watch document.body for any cart DOM changes ──
   function watchDrawer(drawer) {
-    console.error('[AMONI UPSELL] watching cart-drawer...');
+    console.error('[AMONI UPSELL] watching body for cart changes...');
 
-    // Observe childList changes
-    var observer = new MutationObserver(function () {
+    // Watch body — catches Horizon full re-renders of cart drawer contents
+    var observer = new MutationObserver(function (mutations) {
+      // Skip mutations caused by our own widget insertion
+      for (var i = 0; i < mutations.length; i++) {
+        var m = mutations[i];
+        for (var j = 0; j < m.addedNodes.length; j++) {
+          if (m.addedNodes[j].id === WIDGET_ID) return;
+        }
+        for (var j = 0; j < m.removedNodes.length; j++) {
+          if (m.removedNodes[j].id === WIDGET_ID) {
+            // Widget was removed externally — re-inject immediately
+            clearTimeout(injectTimer);
+            injectTimer = setTimeout(function () {
+              if (!isInjecting) fetchAndInject(drawer);
+            }, 150);
+            return;
+          }
+        }
+      }
       clearTimeout(injectTimer);
       injectTimer = setTimeout(function () {
-        if (!isInjecting) fetchAndInject(drawer);
-      }, 80);
+        if (!isInjecting && !document.getElementById(WIDGET_ID)) fetchAndInject(drawer);
+      }, 150);
     });
-    observer.observe(drawer, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
 
-    // Observe attribute changes (open/close)
-    var attrObserver = new MutationObserver(function (mutations) {
-      mutations.forEach(function (m) {
-        console.log('[Amoni] attr changed:', m.attributeName, drawer.getAttribute(m.attributeName));
-      });
-      clearTimeout(injectTimer);
-      injectTimer = setTimeout(function () {
-        if (!isInjecting) fetchAndInject(drawer);
-      }, 80);
-    });
-    attrObserver.observe(drawer, { attributes: true });
-
-    // Reset cached hash on cart changes so widget re-evaluates immediately
+    // Reset on cart API events (add to cart etc.)
     ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (n) {
       document.addEventListener(n, function () {
         cachedCartHash = '';
-        clearTimeout(injectTimer);
         var existing = document.getElementById(WIDGET_ID);
         if (existing) existing.remove();
-        injectTimer = setTimeout(function () {
-          if (!isInjecting) fetchAndInject(drawer);
-        }, 300);
       });
     });
 
-    // Also poll every second as fallback
+    // Also poll every 2s as safety net
     setInterval(function () {
       if (!document.getElementById(WIDGET_ID)) {
         fetchAndInject(drawer);
       }
-    }, 1000);
+    }, 2000);
 
     // Try injecting immediately
     fetchAndInject(drawer);
@@ -271,7 +272,8 @@
       'section[id*="cart"]',
     ];
     // Words that indicate a sub-element, not the main drawer container
-    var SKIP = ['header', 'toggle', 'trigger', 'overlay', 'backdrop', 'button', 'icon', 'link', 'close', 'open'];
+    // Note: avoid 'open'/'close' — main drawer div often has class 'cart-drawer--is-open'
+    var SKIP = ['__header', '__toggle', '__trigger', '__overlay', '__backdrop', '__close', '-heading', '-header'];
     for (var i = 0; i < selectors.length; i++) {
       var els = document.querySelectorAll(selectors[i]);
       for (var j = 0; j < els.length; j++) {
