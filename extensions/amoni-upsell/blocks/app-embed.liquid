@@ -137,39 +137,48 @@
     return wrapper;
   }
 
+  // ── Find footer/discount anchor in a given root ──
+  function findFooterAnchor(root) {
+    return (
+      root.querySelector('cart-drawer-footer') ||
+      root.querySelector('[class*="cart-drawer__footer"]') ||
+      root.querySelector('[class*="CartDrawer__Footer"]') ||
+      root.querySelector('[id*="discount" i]') ||
+      root.querySelector('[class*="discount" i]') ||
+      root.querySelector('details') ||
+      root.querySelector('[class*="footer"]') ||
+      root.querySelector('a[href="/checkout"]') ||
+      root.querySelector('a[href*="/checkout"]') ||
+      root.querySelector('button[name="checkout"]') ||
+      root.querySelector('button[type="submit"]')
+    );
+  }
+
   // ── Insert widget above the Discount/footer area ──
   function injectIntoDrawer(drawer, funnel) {
     if (isInjecting) return;
-    if (drawer.querySelector('#' + WIDGET_ID)) return;
 
-    // Find the footer/discount anchor — bail if not ready yet (drawer still loading)
-    var footer =
-      drawer.querySelector('cart-drawer-footer') ||
-      drawer.querySelector('[class*="cart-drawer__footer"]') ||
-      drawer.querySelector('[class*="CartDrawer__Footer"]') ||
-      drawer.querySelector('[id*="discount" i]') ||
-      drawer.querySelector('[class*="discount" i]') ||
-      drawer.querySelector('details') ||
-      drawer.querySelector('[class*="footer"]') ||
-      drawer.querySelector('a[href="/checkout"]') ||
-      drawer.querySelector('a[href*="/checkout"]') ||
-      drawer.querySelector('button[name="checkout"]') ||
-      drawer.querySelector('button[type="submit"]');
+    // Search within drawer first; if not found, search parent (footer may be a sibling)
+    var footer = findFooterAnchor(drawer);
+    var insertRoot = drawer;
+    if (!footer && drawer.parentNode) {
+      footer = findFooterAnchor(drawer.parentNode);
+      insertRoot = drawer.parentNode;
+    }
 
-    console.error('[AMONI UPSELL] footer anchor=' + (footer ? footer.tagName + '#' + footer.id + '.' + (typeof footer.className === 'string' ? footer.className : '').substring(0,30) : 'null') + ' children=' + drawer.children.length);
+    console.error('[AMONI UPSELL] footer=' + (footer ? footer.tagName + '#' + footer.id + '.' + (typeof footer.className === 'string' ? footer.className : '').substring(0,30) : 'null') + ' children=' + drawer.children.length);
 
-    // If footer not found yet, wait for more DOM changes via MutationObserver
+    // Already injected into this root?
+    if (insertRoot.querySelector('#' + WIDGET_ID)) return;
+
+    // If footer not found yet, bail — MutationObserver will retry
     if (!footer) return;
 
     isInjecting = true;
     var widget = buildWidget(funnel);
 
-    // Insert before the footer container (puts widget between items list and footer)
-    if (footer.parentNode) {
-      footer.parentNode.insertBefore(widget, footer);
-    } else {
-      drawer.appendChild(widget);
-    }
+    // Insert before the footer (puts widget between items and discount/checkout)
+    footer.parentNode.insertBefore(widget, footer);
 
     fetch(APP_URL + '/api/events', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
