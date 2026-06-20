@@ -137,17 +137,18 @@
     return wrapper;
   }
 
-  // ── Find discount/footer anchor searching from document level ──
+  // ── Find the cart summary/footer container to insert widget before it ──
   function findFooterAnchor() {
-    // Try specific Horizon selectors first, then generic fallbacks
+    // Target the summary block (above discount/totals/checkout), not a child element
     return (
-      document.querySelector('#cart-discount-disclosure') ||
-      document.querySelector('cart-drawer-footer') ||
-      document.querySelector('[id*="discount-disclosure"]') ||
+      document.querySelector('[class*="cart-drawer__summary"]') ||
+      document.querySelector('[class*="cart__summary"]') ||
+      document.querySelector('[class*="cart-summary"]') ||
       document.querySelector('[class*="cart-drawer__footer"]') ||
-      document.querySelector('[class*="CartDrawer__Footer"]') ||
       document.querySelector('[class*="cart__footer"]') ||
-      document.querySelector('[class*="cart-footer"]')
+      document.querySelector('[class*="cart-footer"]') ||
+      document.querySelector('cart-drawer-footer') ||
+      document.querySelector('#cart-discount-disclosure')
     );
   }
 
