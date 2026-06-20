@@ -233,19 +233,58 @@
     fetchAndInject(drawer);
   }
 
+  // ── Find cart drawer element by trying multiple selectors ──
+  function findCartDrawer() {
+    var selectors = [
+      'cart-drawer',
+      'cart-notification',
+      'cart-items',
+      'side-cart',
+      '[id*="cart-drawer"]',
+      '[id*="CartDrawer"]',
+      '[class*="cart-drawer"]',
+      '[class*="CartDrawer"]',
+      '[data-cart-drawer]',
+      'dialog[id*="cart"]',
+      'aside[id*="cart"]',
+      'section[id*="cart"]',
+    ];
+    for (var i = 0; i < selectors.length; i++) {
+      var el = document.querySelector(selectors[i]);
+      if (el) {
+        console.error('[AMONI UPSELL] cart element found: ' + selectors[i] + ' tag=' + el.tagName + ' id=' + el.id + ' class=' + el.className.substring(0, 60));
+        return el;
+      }
+    }
+    return null;
+  }
+
   // ── Start when DOM is ready ──
   function init() {
     console.error('[AMONI UPSELL] script running, shop=' + SHOP);
-    var drawer = document.querySelector('cart-drawer');
-    console.error('[AMONI UPSELL] cart-drawer element=' + (drawer ? 'FOUND' : 'NOT FOUND'));
+    var drawer = findCartDrawer();
     if (drawer) {
       watchDrawer(drawer);
     } else {
-      var bodyObserver = new MutationObserver(function () {
-        var d = document.querySelector('cart-drawer');
+      console.error('[AMONI UPSELL] no cart element found — watching body for changes');
+      // Log all custom elements in body to help identify cart element
+      var allTags = {};
+      document.body.querySelectorAll('*').forEach(function(el) {
+        if (el.tagName.indexOf('-') !== -1) allTags[el.tagName.toLowerCase()] = true;
+      });
+      console.error('[AMONI UPSELL] custom elements on page: ' + Object.keys(allTags).join(', '));
+
+      var bodyObserver = new MutationObserver(function (mutations) {
+        mutations.forEach(function(m) {
+          m.addedNodes.forEach(function(node) {
+            if (node.nodeType === 1) {
+              console.error('[AMONI UPSELL] node added: ' + node.tagName + ' id=' + node.id);
+            }
+          });
+        });
+        var d = findCartDrawer();
         if (d) {
           bodyObserver.disconnect();
-          console.error('[AMONI UPSELL] cart-drawer appeared in DOM');
           watchDrawer(d);
         }
       });
