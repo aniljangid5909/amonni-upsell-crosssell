@@ -123,13 +123,44 @@
           btn.textContent = 'Adding...';
           btn.disabled = true;
 
+          // Mirror what the theme's own Add-to-Cart does: pass its sections so
+          // the response includes rendered cart HTML we can inject directly.
+          var addForm = document.querySelector('form[action*="/cart/add"]');
+          var sectionsEl = addForm ? addForm.querySelector('[name="sections"]') : null;
+          var themeSections = sectionsEl ? sectionsEl.value : null;
+
+          var payload = { items: items };
+          if (themeSections) payload.sections = themeSections;
+
           fetch('/cart/add.js', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: items }),
+            body: JSON.stringify(payload),
           })
             .then(function (r) {
               if (!r.ok) throw new Error('cart error');
+              return r.json();
+            })
+            .then(function (addData) {
+              // Inject the theme's rendered section HTML directly into the page DOM.
+              // This updates the cart drawer content before we open it.
+              if (addData.sections) {
+                Object.keys(addData.sections).forEach(function (key) {
+                  var html = addData.sections[key];
+                  if (!html) return;
+                  var tmp = document.createElement('div');
+                  tmp.innerHTML = html;
+                  // Match elements by id or data-section-id and swap innerHTML
+                  tmp.querySelectorAll('[id]').forEach(function (srcEl) {
+                    var target = document.getElementById(srcEl.id);
+                    // Only update cart-related elements, never the product widget
+                    if (target && srcEl.id !== 'amoni-product-offer' && !srcEl.id.startsWith('amoni-')) {
+                      target.innerHTML = srcEl.innerHTML;
+                    }
+                  });
+                });
+              }
+
               if (discountCode) {
                 return fetch('/cart/update.js', {
                   method: 'POST',
@@ -149,53 +180,7 @@
               });
 
               refreshBadge();
-
-              // Open the drawer immediately so the user sees it
               openCartDrawer();
-
-              // After the drawer finishes opening, inject fresh cart HTML
-              // (avoids the theme overwriting our injection on open)
-              setTimeout(function () {
-                var cartComp =
-                  document.querySelector('cart-items-component[data-section-id]') ||
-                  document.querySelector('cart-drawer-items[data-section-id]') ||
-                  document.querySelector('[data-section-id*="cart"]');
-
-                var sectionId = cartComp ? (cartComp.getAttribute('data-section-id') || '') : '';
-                var handle = sectionId.replace(/^sections--\d+__/, '') || '';
-
-                // Common cart drawer section handles to try as fallbacks
-                var handles = handle ? [handle] : ['cart-drawer', 'main-cart-drawer', 'cart'];
-
-                function tryFetch(i) {
-                  if (i >= handles.length) return;
-                  fetch('/?sections=' + encodeURIComponent(handles[i]))
-                    .then(function (r) { return r.json(); })
-                    .then(function (sections) {
-                      var html = sections[handles[i]] || sections[Object.keys(sections)[0]];
-                      if (!html) { tryFetch(i + 1); return; }
-
-                      var tmp = document.createElement('div');
-                      tmp.innerHTML = html;
-                      var tag = cartComp ? cartComp.tagName.toLowerCase() : 'cart-items-component';
-                      var newComp = tmp.querySelector(tag) || tmp.querySelector('[class*="cart-drawer__content"]');
-                      if (newComp && cartComp) {
-                        cartComp.innerHTML = newComp.innerHTML;
-                      }
-                    })
-                    .catch(function () { tryFetch(i + 1); });
-                }
-
-                if (cartComp) {
-                  tryFetch(0);
-                } else {
-                  // No known cart component — dispatch generic refresh events
-                  ['cart:refresh', 'cart:updated', 'theme:cart:refresh'].forEach(function (n) {
-                    document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-                    window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-                  });
-                }
-              }, 350);
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
