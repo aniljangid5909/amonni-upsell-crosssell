@@ -37,15 +37,34 @@
     else if (dialog) dialog.removeAttribute('hidden');
   }
 
-  // ── Refresh cart badge + trigger theme cart update ──
+  // ── Refresh cart via Shopify pub/sub + events ──
   function refreshCart(sectionsData) {
-    // Update badge
     fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
+      // Update badge
       document.querySelectorAll('cart-count,[data-cart-count],.cart-count,#cart-count,.CartCount,.cart-item-count')
         .forEach(function (b) { b.textContent = cart.item_count; });
+
+      // Shopify global pub/sub (triggers cart-items-component.onCartUpdate in all modern themes)
+      if (window.publish && window.PUB_SUB_EVENTS && window.PUB_SUB_EVENTS.cartUpdate) {
+        window.publish(window.PUB_SUB_EVENTS.cartUpdate, { source: 'amoni-upsell', cartData: cart });
+      }
+
+      // Direct component methods
+      var cartComp = document.querySelector('cart-items-component');
+      if (cartComp) {
+        if (typeof cartComp.onCartUpdate === 'function') cartComp.onCartUpdate();
+        else if (typeof cartComp.refresh === 'function') cartComp.refresh();
+        else if (typeof cartComp.renderContents === 'function') cartComp.renderContents(window.location.href);
+      }
+
+      // Dispatch all known cart events
+      ['cart:refresh','cart:updated','cart:change','theme:cart:add','theme:cart:update'].forEach(function (n) {
+        var ev = new CustomEvent(n, { bubbles: true, detail: { cart: cart } });
+        document.dispatchEvent(ev); window.dispatchEvent(ev);
+      });
     }).catch(function () {});
 
-    // If /cart/add.js returned section HTML, use it to update cart items
+    // Apply section HTML from /cart/add.js response if available
     if (sectionsData) {
       Object.keys(sectionsData).forEach(function (sectionId) {
         var html = sectionsData[sectionId];
@@ -53,7 +72,7 @@
         if (sectionEl && html) {
           var tmp = document.createElement('div');
           tmp.innerHTML = html;
-          var sel = '[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"],[class*="cart__items"],#cart-form';
+          var sel = '[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"],[class*="cart__items"]';
           var newEl = tmp.querySelector(sel);
           var oldEl = sectionEl.querySelector(sel);
           if (newEl && oldEl) oldEl.innerHTML = newEl.innerHTML;
@@ -65,12 +84,6 @@
         }
       });
     }
-
-    // Dispatch cart events for theme listeners
-    ['cart:refresh', 'cart:updated', 'cart:change', 'theme:cart:add', 'theme:cart:update'].forEach(function (n) {
-      document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-      window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-    });
   }
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
