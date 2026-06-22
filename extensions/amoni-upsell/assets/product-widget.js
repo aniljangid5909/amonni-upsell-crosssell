@@ -123,44 +123,16 @@
           btn.textContent = 'Adding...';
           btn.disabled = true;
 
-          // Mirror what the theme's own Add-to-Cart does: pass its sections so
-          // the response includes rendered cart HTML we can inject directly.
-          var addForm = document.querySelector('form[action*="/cart/add"]');
-          var sectionsEl = addForm ? addForm.querySelector('[name="sections"]') : null;
-          var themeSections = sectionsEl ? sectionsEl.value : null;
-
-          var payload = { items: items };
-          if (themeSections) payload.sections = themeSections;
-
           fetch('/cart/add.js', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ items: items }),
           })
             .then(function (r) {
               if (!r.ok) throw new Error('cart error');
               return r.json();
             })
-            .then(function (addData) {
-              // Inject the theme's rendered section HTML directly into the page DOM.
-              // This updates the cart drawer content before we open it.
-              if (addData.sections) {
-                Object.keys(addData.sections).forEach(function (key) {
-                  var html = addData.sections[key];
-                  if (!html) return;
-                  var tmp = document.createElement('div');
-                  tmp.innerHTML = html;
-                  // Match elements by id or data-section-id and swap innerHTML
-                  tmp.querySelectorAll('[id]').forEach(function (srcEl) {
-                    var target = document.getElementById(srcEl.id);
-                    // Only update cart-related elements, never the product widget
-                    if (target && srcEl.id !== 'amoni-product-offer' && !srcEl.id.startsWith('amoni-')) {
-                      target.innerHTML = srcEl.innerHTML;
-                    }
-                  });
-                });
-              }
-
+            .then(function () {
               if (discountCode) {
                 return fetch('/cart/update.js', {
                   method: 'POST',
@@ -180,7 +152,35 @@
               });
 
               refreshBadge();
+
+              // Open cart drawer first
               openCartDrawer();
+
+              // After drawer is open, trigger every known refresh mechanism
+              setTimeout(function () {
+                // 1. Shopify global pub/sub — Horizon and Dawn subscribe to this
+                if (window.publish) {
+                  var evt =
+                    (window.PUB_SUB_EVENTS && window.PUB_SUB_EVENTS.cartUpdate) ||
+                    (window.Shopify && window.Shopify.PUBSUBEvents && window.Shopify.PUBSUBEvents.cartUpdate) ||
+                    'cart-update';
+                  try { window.publish(evt, { cart: null }); } catch (e) {}
+                }
+
+                // 2. Direct call on cart-items-component (Horizon)
+                var cartComp = document.querySelector('cart-items-component');
+                if (cartComp) {
+                  if (typeof cartComp.onCartUpdate === 'function') try { cartComp.onCartUpdate(); } catch (e) {}
+                  else if (typeof cartComp.refresh === 'function') try { cartComp.refresh(); } catch (e) {}
+                  else if (typeof cartComp.renderContents === 'function') try { cartComp.renderContents({}); } catch (e) {}
+                }
+
+                // 3. Generic events for other themes
+                ['cart:refresh', 'cart:updated', 'cart-update', 'theme:cart:refresh'].forEach(function (n) {
+                  document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+                  window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+                });
+              }, 300);
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
