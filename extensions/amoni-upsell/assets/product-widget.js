@@ -152,8 +152,33 @@
               // Update badge count
               refreshBadge();
 
-              // Open the cart drawer — the theme will fetch fresh cart contents on open
+              // Open the cart drawer, then force the theme's cart component to reload
               openCartDrawer();
+              setTimeout(function () {
+                // Horizon / Dawn: cart-items-component has onCartUpdate()
+                var cartComp = document.querySelector('cart-items-component');
+                if (cartComp) {
+                  if (typeof cartComp.onCartUpdate === 'function') {
+                    cartComp.onCartUpdate();
+                  } else if (typeof cartComp.refresh === 'function') {
+                    cartComp.refresh();
+                  } else if (typeof cartComp.renderContents === 'function') {
+                    cartComp.renderContents({});
+                  }
+                }
+                // Generic: dispatch events that themes use to reload cart
+                ['cart:refresh', 'cart:updated', 'cart-update', 'theme:cart:refresh'].forEach(function (n) {
+                  document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+                  window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+                });
+                // Shopify global pub/sub (Horizon, Dawn)
+                if (window.Shopify && window.Shopify.PUBSUBEvents && window.publish) {
+                  try { window.publish(window.Shopify.PUBSUBEvents.cartUpdate, { cart: null }); } catch (e) {}
+                }
+                if (window.PUB_SUB_EVENTS && window.publish) {
+                  try { window.publish(window.PUB_SUB_EVENTS.cartUpdate, { cart: null }); } catch (e) {}
+                }
+              }, 200);
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
