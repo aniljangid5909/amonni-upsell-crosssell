@@ -52,61 +52,84 @@
   }
 
   function refreshBadge() {
-    // Update cart badge count
-    fetch('/cart.js').then(function (r) { return r.json(); }).then(function (c) {
+    fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
+      // 1. Update badge count
       document.querySelectorAll('cart-count,[data-cart-count],.cart-count,#cart-count,.CartCount,.cart-item-count')
-        .forEach(function (b) { b.textContent = c.item_count; });
-    }).catch(function () {});
+        .forEach(function (b) { b.textContent = cart.item_count; });
 
-    // Try Horizon section re-render
-    var cartComp = document.querySelector('cart-items-component[data-section-id]') ||
-                   document.querySelector('[data-cart-drawer][data-section-id]');
-    var rawSectionId = cartComp && cartComp.dataset.sectionId;
-    // data-section-id = "sections--12345__handle" → extract "handle" for /?sections= API
-    var sectionHandle = rawSectionId ? rawSectionId.replace(/^[^_]*__/, '') : null;
-    // Fallback: try known Horizon/common section handles
-    var handles = sectionHandle ? [sectionHandle] : ['cart-drawer', 'header', 'cart'];
-    console.error('[AMONI UPSELL] refreshing cart, handle=' + handles[0]);
-
-    (function tryNextHandle(i) {
-      if (i >= handles.length) {
-        // All section fetches failed — close and reopen cart drawer to force Horizon re-render
-        var dialog = document.querySelector('dialog[class*="cart"],dialog[id*="cart"],.dialog-drawer[open]');
-        if (dialog && dialog.open) {
-          dialog.close();
-          setTimeout(function () {
-            var openBtn = document.querySelector('[aria-controls$="cart"],[aria-controls*="CartDrawer"],[data-cart-toggle]');
-            if (!openBtn) openBtn = document.querySelector('a[href="/cart"]');
-            if (openBtn) openBtn.click();
-          }, 200);
-        }
-        return;
+      // 2. Try component's own refresh methods (works if theme exposes them)
+      var cartComp = document.querySelector('cart-items-component');
+      if (cartComp) {
+        if (typeof cartComp.refresh === 'function') { cartComp.refresh(); }
+        else if (typeof cartComp.renderContents === 'function') { cartComp.renderContents(window.location.href); }
       }
-      fetch('/?sections=' + encodeURIComponent(handles[i]))
-        .then(function (r) { return r.json(); })
-        .then(function (sections) {
-          var html = sections[handles[i]];
-          if (!html) { tryNextHandle(i + 1); return; }
-          var tmp = document.createElement('div');
-          tmp.innerHTML = html;
-          var sel = '[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"],.cart-items__wrapper';
-          var newWrap = tmp.querySelector(sel);
-          var oldWrap = document.querySelector(sel);
-          if (newWrap && oldWrap) {
-            oldWrap.innerHTML = newWrap.innerHTML;
-            console.error('[AMONI UPSELL] cart items re-rendered via section=' + handles[i]);
-          } else {
-            tryNextHandle(i + 1);
-          }
-        }).catch(function () { tryNextHandle(i + 1); });
-    })(0);
 
-    // Dispatch generic cart events
-    ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (n) {
-      document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-      window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-    });
-    if (cartComp) cartComp.dispatchEvent(new CustomEvent('cart:refresh', { bubbles: true }));
+      // 3. Dynamic section discovery — find any rendered section containing cart elements
+      var cartSection = null;
+      document.querySelectorAll('[id^="shopify-section"]').forEach(function (s) {
+        if (!cartSection && s.querySelector('cart-items-component,[class*="cart-drawer__inner"],[class*="CartDrawer"]')) {
+          cartSection = s;
+        }
+      });
+      var dynHandle = cartSection ? cartSection.id.replace('shopify-section-', '') : null;
+
+      // 4. Also try component's data-section-id
+      var compEl = document.querySelector('cart-items-component[data-section-id]');
+      var compHandle = compEl ? compEl.dataset.sectionId.replace(/^[^_]*__/, '') : null;
+
+      // Collect all handles to try (dedup, non-empty)
+      var tried = {};
+      var handles = [dynHandle, compHandle, 'cart-drawer', 'cart'].filter(function(h) {
+        if (!h || tried[h]) return false;
+        tried[h] = true;
+        return true;
+      });
+
+      (function trySection(i) {
+        if (i >= handles.length) {
+          // 5. Final fallback: close + reopen dialog to force theme re-render
+          var dialog = document.querySelector('.dialog-drawer[open],dialog[open][class*="cart"],dialog[open][id*="cart"]');
+          if (dialog) {
+            dialog.close();
+            setTimeout(function () {
+              var openBtn =
+                document.querySelector('[aria-controls="cart-drawer"]') ||
+                document.querySelector('[data-cart-toggle]') ||
+                document.querySelector('[aria-label*="cart" i]:not([class*="close"])') ||
+                document.querySelector('button[class*="cart-icon"]:not([class*="close"])');
+              if (openBtn) openBtn.click();
+            }, 250);
+          }
+          return;
+        }
+        fetch('/?sections=' + encodeURIComponent(handles[i]))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var html = data[handles[i]];
+            if (!html) { trySection(i + 1); return; }
+            var tmp = document.createElement('div');
+            tmp.innerHTML = html;
+            var sel = '[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"],[class*="cart__items"]';
+            var newEl = tmp.querySelector(sel);
+            var oldEl = document.querySelector(sel);
+            if (newEl && oldEl) {
+              oldEl.innerHTML = newEl.innerHTML;
+              console.error('[AMONI UPSELL] cart re-rendered via section=' + handles[i]);
+            } else {
+              trySection(i + 1);
+            }
+          }).catch(function () { trySection(i + 1); });
+      })(0);
+
+      // 5. Dispatch events with cart data (some themes listen for these)
+      var eventNames = ['cart:refresh','cart:updated','cart:change','theme:cart:add','theme:cart:update','cart-update'];
+      eventNames.forEach(function (n) {
+        var ev = new CustomEvent(n, { bubbles: true, detail: { cart: cart } });
+        document.dispatchEvent(ev);
+        window.dispatchEvent(ev);
+      });
+      if (cartComp) cartComp.dispatchEvent(new CustomEvent('cart:refresh', { bubbles: true, detail: { cart: cart } }));
+    }).catch(function () {});
   }
 
   // ── Build widget HTML and attach button listener ──
