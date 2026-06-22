@@ -177,13 +177,54 @@
       if (!funnel.offerVariantId) return;
       btn.textContent = 'Adding...';
       btn.disabled = true;
+
+      // Discover which sections to request for cart re-render
+      var sectionsToFetch = [];
+      document.querySelectorAll('[id^="shopify-section"]').forEach(function (el) {
+        if (el.querySelector('cart-items-component,[class*="cart-drawer"],[class*="CartDrawer"]')) {
+          sectionsToFetch.push(el.id.replace('shopify-section-', ''));
+        }
+      });
+      // Always include common fallbacks
+      ['cart-drawer', 'cart-notification'].forEach(function (h) {
+        if (sectionsToFetch.indexOf(h) === -1) sectionsToFetch.push(h);
+      });
+
       fetch('/cart/add.js', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: parseInt(funnel.offerVariantId, 10), quantity: 1 }),
+        body: JSON.stringify({
+          id: parseInt(funnel.offerVariantId, 10),
+          quantity: 1,
+          sections: sectionsToFetch.join(','),
+        }),
       })
-        .then(function (r) { if (!r.ok) throw new Error(); })
-        .then(function () {
+        .then(function (r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function (addData) {
+          // Use sections HTML returned by /cart/add.js to update cart drawer immediately
+          if (addData.sections) {
+            Object.keys(addData.sections).forEach(function (sectionId) {
+              var html = addData.sections[sectionId];
+              var sectionEl = document.getElementById('shopify-section-' + sectionId);
+              if (sectionEl && html) {
+                // Swap just the cart items list, not the whole section (avoids breaking scripts)
+                var tmp = document.createElement('div');
+                tmp.innerHTML = html;
+                var sel = '[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"],[class*="cart__items"],#cart-form,.cart-items';
+                var newEl = tmp.querySelector(sel);
+                var oldEl = sectionEl.querySelector(sel);
+                if (newEl && oldEl) oldEl.innerHTML = newEl.innerHTML;
+                else if (newEl) {
+                  // Replace more of the section
+                  var newSection = tmp.querySelector('cart-items-component');
+                  var oldSection = sectionEl.querySelector('cart-items-component');
+                  if (newSection && oldSection) oldSection.innerHTML = newSection.innerHTML;
+                }
+              }
+            });
+          }
+
+          // Apply discount code if any
           if (funnel.discountCode) {
             return fetch('/cart/update.js', {
               method: 'POST', headers: { 'Content-Type': 'application/json' },
