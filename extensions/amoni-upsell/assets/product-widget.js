@@ -150,35 +150,52 @@
 
               refreshBadge();
 
-              // Fetch fresh cart section HTML and inject it directly — no pub/sub
-              // so the product page DOM stays untouched.
-              var cartComp = document.querySelector('cart-items-component[data-section-id]');
-              var sectionId = cartComp ? cartComp.getAttribute('data-section-id') : null;
-              var handle = sectionId ? sectionId.replace(/^sections--\d+__/, '') : null;
+              // Open the drawer immediately so the user sees it
+              openCartDrawer();
 
-              function doOpen() { openCartDrawer(); }
+              // After the drawer finishes opening, inject fresh cart HTML
+              // (avoids the theme overwriting our injection on open)
+              setTimeout(function () {
+                var cartComp =
+                  document.querySelector('cart-items-component[data-section-id]') ||
+                  document.querySelector('cart-drawer-items[data-section-id]') ||
+                  document.querySelector('[data-section-id*="cart"]');
 
-              if (cartComp && handle) {
-                fetch('/?sections=' + encodeURIComponent(handle))
-                  .then(function (r) { return r.json(); })
-                  .then(function (sections) {
-                    var html = sections[handle] || sections[Object.keys(sections)[0]];
-                    if (html) {
+                var sectionId = cartComp ? (cartComp.getAttribute('data-section-id') || '') : '';
+                var handle = sectionId.replace(/^sections--\d+__/, '') || '';
+
+                // Common cart drawer section handles to try as fallbacks
+                var handles = handle ? [handle] : ['cart-drawer', 'main-cart-drawer', 'cart'];
+
+                function tryFetch(i) {
+                  if (i >= handles.length) return;
+                  fetch('/?sections=' + encodeURIComponent(handles[i]))
+                    .then(function (r) { return r.json(); })
+                    .then(function (sections) {
+                      var html = sections[handles[i]] || sections[Object.keys(sections)[0]];
+                      if (!html) { tryFetch(i + 1); return; }
+
                       var tmp = document.createElement('div');
                       tmp.innerHTML = html;
-                      var newComp = tmp.querySelector('cart-items-component');
-                      if (newComp) {
-                        // Swap only the inner content so the custom element stays registered
+                      var tag = cartComp ? cartComp.tagName.toLowerCase() : 'cart-items-component';
+                      var newComp = tmp.querySelector(tag) || tmp.querySelector('[class*="cart-drawer__content"]');
+                      if (newComp && cartComp) {
                         cartComp.innerHTML = newComp.innerHTML;
                       }
-                    }
-                    doOpen();
-                  })
-                  .catch(doOpen);
-              } else {
-                // Fallback for themes without cart-items-component
-                doOpen();
-              }
+                    })
+                    .catch(function () { tryFetch(i + 1); });
+                }
+
+                if (cartComp) {
+                  tryFetch(0);
+                } else {
+                  // No known cart component — dispatch generic refresh events
+                  ['cart:refresh', 'cart:updated', 'theme:cart:refresh'].forEach(function (n) {
+                    document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+                    window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+                  });
+                }
+              }, 350);
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
