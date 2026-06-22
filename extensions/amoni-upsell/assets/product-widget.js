@@ -9,88 +9,67 @@
   var triggerPrice = parseFloat(el.dataset.triggerPrice || '0');
   var triggerVariantId = el.dataset.triggerVariantId || '';
 
-  // ── Built-in cart notification — works on every theme, no drawer dependency ──
-  function showCartNotification(itemTitle, itemImage) {
-    // Remove any existing notification
-    var existing = document.getElementById('amoni-cart-toast');
-    if (existing) existing.remove();
+  // ── Open the cart drawer using the theme's own mechanism ──
+  function openCartDrawer() {
+    // Try: click the cart icon/button (most reliable — theme handles the rest)
+    var cartBtn =
+      document.querySelector('[href="/cart"][class*="icon"]') ||
+      document.querySelector('[aria-label*="cart" i]:not([class*="close"]):not([class*="item"])') ||
+      document.querySelector('[data-cart-toggle]') ||
+      document.querySelector('button[class*="cart"]:not([class*="close"]):not([class*="remove"])') ||
+      document.querySelector('a[href="/cart"][class*="cart"]');
 
-    var toast = document.createElement('div');
-    toast.id = 'amoni-cart-toast';
-    toast.style.cssText = [
-      'position:fixed',
-      'top:20px',
-      'right:20px',
-      'z-index:999999',
-      'background:#fff',
-      'border-radius:14px',
-      'box-shadow:0 8px 32px rgba(0,0,0,0.18)',
-      'padding:16px 20px',
-      'display:flex',
-      'align-items:center',
-      'gap:14px',
-      'max-width:340px',
-      'width:calc(100vw - 40px)',
-      'font-family:inherit',
-      'animation:amoniSlideIn 0.3s ease',
-    ].join(';');
+    if (cartBtn) { cartBtn.click(); return; }
 
-    // Inject keyframe animation once
-    if (!document.getElementById('amoni-toast-style')) {
-      var style = document.createElement('style');
-      style.id = 'amoni-toast-style';
-      style.textContent = [
-        '@keyframes amoniSlideIn{from{opacity:0;transform:translateY(-16px)}to{opacity:1;transform:translateY(0)}}',
-        '@keyframes amoniSlideOut{from{opacity:1;transform:translateY(0)}to{opacity:0;transform:translateY(-16px)}}',
-      ].join('');
-      document.head.appendChild(style);
-    }
-
-    var imgHtml = itemImage
-      ? '<img src="' + itemImage + '" style="width:52px;height:52px;border-radius:8px;object-fit:cover;flex-shrink:0;" />'
-      : '<div style="width:52px;height:52px;border-radius:8px;background:#f0f0f0;flex-shrink:0;"></div>';
-
-    toast.innerHTML =
-      imgHtml +
-      '<div style="flex:1;min-width:0;">' +
-        '<div style="font-size:13px;color:#888;margin-bottom:2px;">Added to cart</div>' +
-        '<div style="font-size:14px;font-weight:600;color:#1a1a1a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + (itemTitle || 'Item') + '</div>' +
-        '<div style="display:flex;gap:8px;margin-top:8px;">' +
-          '<a href="/cart" style="flex:1;text-align:center;padding:7px 0;background:#1a1a1a;color:#fff;border-radius:8px;font-size:13px;font-weight:600;text-decoration:none;">View cart</a>' +
-          '<button id="amoni-toast-close" style="flex:1;padding:7px 0;background:#f3f3f3;color:#333;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;">Continue</button>' +
-        '</div>' +
-      '</div>';
-
-    document.body.appendChild(toast);
-
-    document.getElementById('amoni-toast-close').addEventListener('click', function () {
-      dismissToast(toast);
+    // Try: dispatch events that themes listen to for opening the drawer
+    ['cart:open', 'theme:cart:open', 'cartDrawer:open', 'open-cart'].forEach(function (n) {
+      document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+      window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
     });
 
-    // Auto-dismiss after 5 seconds
-    setTimeout(function () { dismissToast(toast); }, 5000);
+    // Try: open a dialog/aside if it exists
+    var dialog =
+      document.querySelector('dialog[id*="cart"]') ||
+      document.querySelector('aside[id*="cart"]') ||
+      document.querySelector('.dialog-drawer[class*="cart"]') ||
+      document.querySelector('[class*="cart-drawer"]:not([class*="header"]):not([class*="heading"])');
+    if (dialog && typeof dialog.showModal === 'function') dialog.showModal();
+    else if (dialog) dialog.removeAttribute('hidden');
   }
 
-  function dismissToast(toast) {
-    if (!toast || !toast.parentNode) return;
-    toast.style.animation = 'amoniSlideOut 0.3s ease forwards';
-    setTimeout(function () { if (toast.parentNode) toast.remove(); }, 300);
-  }
+  // ── Refresh cart badge + trigger theme cart update ──
+  function refreshCart(sectionsData) {
+    // Update badge
+    fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
+      document.querySelectorAll('cart-count,[data-cart-count],.cart-count,#cart-count,.CartCount,.cart-item-count')
+        .forEach(function (b) { b.textContent = cart.item_count; });
+    }).catch(function () {});
 
-  // ── Update cart badge + fire refresh events (no drawer open attempt) ──
-  function refreshCartState() {
-    fetch('/cart.js')
-      .then(function (r) { return r.json(); })
-      .then(function (cart) {
-        document.querySelectorAll(
-          'cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount, .cart-item-count'
-        ).forEach(function (b) { b.textContent = cart.item_count; });
-      }).catch(function () {});
+    // If /cart/add.js returned section HTML, use it to update cart items
+    if (sectionsData) {
+      Object.keys(sectionsData).forEach(function (sectionId) {
+        var html = sectionsData[sectionId];
+        var sectionEl = document.getElementById('shopify-section-' + sectionId);
+        if (sectionEl && html) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = html;
+          var sel = '[class*="cart-items_wrapper"],[class*="cart-items-wrapper"],[class*="CartItems"],[class*="cart__items"],#cart-form';
+          var newEl = tmp.querySelector(sel);
+          var oldEl = sectionEl.querySelector(sel);
+          if (newEl && oldEl) oldEl.innerHTML = newEl.innerHTML;
+          else {
+            var newComp = tmp.querySelector('cart-items-component');
+            var oldComp = sectionEl.querySelector('cart-items-component');
+            if (newComp && oldComp) oldComp.innerHTML = newComp.innerHTML;
+          }
+        }
+      });
+    }
 
-    // Let the theme know the cart changed — it will update its own state
-    ['cart:refresh', 'cart:updated', 'cart:change'].forEach(function (name) {
-      document.dispatchEvent(new CustomEvent(name, { bubbles: true }));
-      window.dispatchEvent(new CustomEvent(name, { bubbles: true }));
+    // Dispatch cart events for theme listeners
+    ['cart:refresh', 'cart:updated', 'cart:change', 'theme:cart:add', 'theme:cart:update'].forEach(function (n) {
+      document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
+      window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
     });
   }
 
@@ -172,13 +151,31 @@
           btn.textContent = 'Adding...';
           btn.disabled = true;
 
+          // Discover cart sections for refreshing
+          var sectionsToFetch = [];
+          document.querySelectorAll('[id^="shopify-section"]').forEach(function (s) {
+            if (s.querySelector('cart-items-component,[class*="cart-drawer"],[class*="CartDrawer"]')) {
+              sectionsToFetch.push(s.id.replace('shopify-section-', ''));
+            }
+          });
+          ['cart-drawer', 'cart-notification'].forEach(function (h) {
+            if (sectionsToFetch.indexOf(h) === -1) sectionsToFetch.push(h);
+          });
+
           fetch('/cart/add.js', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: items }),
+            body: JSON.stringify({ items: items, sections: sectionsToFetch.join(',') }),
           })
             .then(function (r) {
               if (!r.ok) throw new Error('cart error');
+              return r.json();
+            })
+            .then(function (addData) {
+              // Apply section HTML from response
+              refreshCart(addData.sections || null);
+
+              // Apply discount code if any
               var next = discountCode
                 ? fetch('/cart/update.js', {
                     method: 'POST',
@@ -198,11 +195,8 @@
                 body: JSON.stringify({ funnelId: funnel.id, shop: shop, eventType: 'accept' }),
               });
 
-              // Show built-in notification (always works on any theme)
-              showCartNotification(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
-
-              // Update badge + dispatch cart events (no drawer open — avoids double-toggle)
-              refreshCartState();
+              // Open cart drawer to show the added item
+              openCartDrawer();
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
