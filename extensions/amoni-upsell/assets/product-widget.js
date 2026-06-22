@@ -130,7 +130,6 @@
           })
             .then(function (r) {
               if (!r.ok) throw new Error('cart error');
-              // Apply discount code if any
               if (discountCode) {
                 return fetch('/cart/update.js', {
                   method: 'POST',
@@ -149,36 +148,37 @@
                 body: JSON.stringify({ funnelId: funnel.id, shop: shop, eventType: 'accept' }),
               });
 
-              // Update badge count
               refreshBadge();
 
-              // Open the cart drawer, then force the theme's cart component to reload
-              openCartDrawer();
-              setTimeout(function () {
-                // Horizon / Dawn: cart-items-component has onCartUpdate()
-                var cartComp = document.querySelector('cart-items-component');
-                if (cartComp) {
-                  if (typeof cartComp.onCartUpdate === 'function') {
-                    cartComp.onCartUpdate();
-                  } else if (typeof cartComp.refresh === 'function') {
-                    cartComp.refresh();
-                  } else if (typeof cartComp.renderContents === 'function') {
-                    cartComp.renderContents({});
-                  }
-                }
-                // Generic: dispatch events that themes use to reload cart
-                ['cart:refresh', 'cart:updated', 'cart-update', 'theme:cart:refresh'].forEach(function (n) {
-                  document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-                  window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-                });
-                // Shopify global pub/sub (Horizon, Dawn)
-                if (window.Shopify && window.Shopify.PUBSUBEvents && window.publish) {
-                  try { window.publish(window.Shopify.PUBSUBEvents.cartUpdate, { cart: null }); } catch (e) {}
-                }
-                if (window.PUB_SUB_EVENTS && window.publish) {
-                  try { window.publish(window.PUB_SUB_EVENTS.cartUpdate, { cart: null }); } catch (e) {}
-                }
-              }, 200);
+              // Fetch fresh cart section HTML and inject it directly — no pub/sub
+              // so the product page DOM stays untouched.
+              var cartComp = document.querySelector('cart-items-component[data-section-id]');
+              var sectionId = cartComp ? cartComp.getAttribute('data-section-id') : null;
+              var handle = sectionId ? sectionId.replace(/^sections--\d+__/, '') : null;
+
+              function doOpen() { openCartDrawer(); }
+
+              if (cartComp && handle) {
+                fetch('/?sections=' + encodeURIComponent(handle))
+                  .then(function (r) { return r.json(); })
+                  .then(function (sections) {
+                    var html = sections[handle] || sections[Object.keys(sections)[0]];
+                    if (html) {
+                      var tmp = document.createElement('div');
+                      tmp.innerHTML = html;
+                      var newComp = tmp.querySelector('cart-items-component');
+                      if (newComp) {
+                        // Swap only the inner content so the custom element stays registered
+                        cartComp.innerHTML = newComp.innerHTML;
+                      }
+                    }
+                    doOpen();
+                  })
+                  .catch(doOpen);
+              } else {
+                // Fallback for themes without cart-items-component
+                doOpen();
+              }
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
