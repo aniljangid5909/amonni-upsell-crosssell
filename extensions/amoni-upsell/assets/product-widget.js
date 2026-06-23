@@ -153,34 +153,55 @@
 
               refreshBadge();
 
-              // Fetch the current page (server always renders fresh cart state)
-              // extract cart-items-component, inject it, THEN open the drawer.
-              // This is the most reliable cross-theme approach.
+              // Find the cart-items-component and its Shopify section handle
+              var cartComp = document.querySelector('cart-items-component');
+              var handle = null;
+              if (cartComp) {
+                // Walk up to find shopify-section-* wrapper (most reliable)
+                var walkEl = cartComp;
+                while (walkEl && walkEl !== document.body) {
+                  if (walkEl.id && walkEl.id.startsWith('shopify-section-')) {
+                    handle = walkEl.id.replace('shopify-section-', '');
+                    break;
+                  }
+                  var sid = walkEl.getAttribute && walkEl.getAttribute('data-section-id');
+                  if (sid) { handle = sid.replace(/^sections--\d+__/, ''); break; }
+                  walkEl = walkEl.parentElement;
+                }
+              }
+
               function doOpenDrawer() { openCartDrawer(); }
 
-              fetch(window.location.href)
-                .then(function (r) { return r.text(); })
-                .then(function (pageHtml) {
-                  try {
-                    var doc = new DOMParser().parseFromString(pageHtml, 'text/html');
-                    var srcComp = doc.querySelector('cart-items-component');
-                    var dstComp = document.querySelector('cart-items-component');
-                    if (srcComp && dstComp) {
-                      // Copy all attributes so empty-state classes/styles are replaced
-                      Array.from(srcComp.attributes).forEach(function (attr) {
-                        try { dstComp.setAttribute(attr.name, attr.value); } catch (e) {}
-                      });
-                      dstComp.innerHTML = srcComp.innerHTML;
-                    }
-                  } catch (e) {}
-                  doOpenDrawer();
-                  // After drawer animation completes, trigger layout recalculation
-                  // so scroll-hint resizes itself correctly for the new content.
-                  setTimeout(function () {
-                    window.dispatchEvent(new Event('resize'));
-                  }, 350);
-                })
-                .catch(doOpenDrawer);
+              function replaceCartComp(html) {
+                try {
+                  var tmp = document.createElement('div');
+                  tmp.innerHTML = html;
+                  var newComp = tmp.querySelector('cart-items-component');
+                  var curComp = document.querySelector('cart-items-component');
+                  if (newComp && curComp) {
+                    // replaceWith triggers disconnectedCallback on old + connectedCallback
+                    // on new so Horizon re-initialises the component with correct state
+                    curComp.replaceWith(newComp);
+                  }
+                } catch (e) {}
+                doOpenDrawer();
+              }
+
+              if (handle) {
+                fetch('/?sections=' + encodeURIComponent(handle))
+                  .then(function (r) { return r.json(); })
+                  .then(function (sections) {
+                    var html = sections[handle] || sections[Object.keys(sections)[0]] || '';
+                    if (html) { replaceCartComp(html); } else { doOpenDrawer(); }
+                  })
+                  .catch(doOpenDrawer);
+              } else {
+                // Fallback: fetch current page
+                fetch(window.location.href)
+                  .then(function (r) { return r.text(); })
+                  .then(function (html) { replaceCartComp(html); })
+                  .catch(doOpenDrawer);
+              }
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
