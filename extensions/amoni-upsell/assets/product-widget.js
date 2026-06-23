@@ -186,10 +186,16 @@
                 openCartDrawer();
                 setTimeout(removeEmptyClass, 150);
                 setTimeout(removeEmptyClass, 600);
-                // Re-clone custom elements AFTER the drawer is painted/visible so
-                // their connectedCallback can measure layout and apply correct classes
-                // (accordion header alignment, discount pill, two-column totals, etc.)
-                setTimeout(function () {
+
+                // Horizon lazy-loads cart JS (accordion-custom, text-component, etc.)
+                // only when the drawer first opens. Wait until those definitions exist,
+                // then clone the elements so connectedCallback fires while visible.
+                var ceNames = ['accordion-custom', 'text-component', 'cart-discount-component'];
+                var whenAllDefined = Promise.all(ceNames.map(function (n) {
+                  return customElements.whenDefined(n);
+                }));
+                var timeout = new Promise(function (res) { setTimeout(res, 3000); });
+                Promise.race([whenAllDefined, timeout]).then(function () {
                   removeEmptyClass();
                   document.querySelectorAll(
                     'cart-drawer accordion-custom, cart-drawer text-component, ' +
@@ -198,8 +204,9 @@
                     var clone = el.cloneNode(true);
                     el.replaceWith(clone);
                   });
-                }, 200);
-                setTimeout(function () { window._amoniProductUpdating = false; }, 2000);
+                  removeEmptyClass();
+                  setTimeout(function () { window._amoniProductUpdating = false; }, 500);
+                });
               }
 
               // Lock out cart-drawer--empty class and watch for it being re-added
