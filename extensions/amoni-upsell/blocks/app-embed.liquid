@@ -234,14 +234,15 @@
           }
         })
         .then(function () {
-          btn.textContent = '✓ Added!';
-          btn.style.background = '#0c8a4f';
           fetch(APP_URL + '/api/events', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'accept' }),
           });
-          showToast(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
           refreshBadge();
+          // Remove the widget — offer was accepted; reset cache so re-check on next open
+          cachedCartHash = '';
+          var w = document.getElementById(WIDGET_ID);
+          if (w) w.remove();
         })
         .catch(function () { btn.textContent = 'Error'; btn.disabled = false; });
     });
@@ -293,11 +294,15 @@
     fetch('/cart.js')
       .then(function (r) { return r.json(); })
       .then(function (cart) {
-        var ids = (cart.items || []).map(function (i) { return String(i.product_id); });
+        var items = cart.items || [];
+        var ids = items.map(function (i) { return String(i.product_id); });
+        var variantIds = items.map(function (i) { return String(i.variant_id); });
         if (!ids.length) return;
         var hash = ids.join(',');
 
         if (cachedFunnel && hash === cachedCartHash) {
+          // Check offer variant not already in cart before re-injecting
+          if (variantIds.indexOf(String(cachedFunnel.offerVariantId)) !== -1) return;
           injectIntoDrawer(drawer, cachedFunnel);
           return;
         }
@@ -309,6 +314,8 @@
             cachedCartHash = hash;
             if (!funnels.length) { cachedFunnel = null; return; }
             cachedFunnel = funnels[0];
+            // Don't show widget if the offer product is already in the cart
+            if (variantIds.indexOf(String(cachedFunnel.offerVariantId)) !== -1) return;
             injectIntoDrawer(drawer, cachedFunnel);
           }).catch(function () {});
       }).catch(function () {});
