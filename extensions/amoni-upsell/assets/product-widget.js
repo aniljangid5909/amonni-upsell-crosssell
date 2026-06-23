@@ -153,55 +153,45 @@
 
               refreshBadge();
 
-              function doOpenDrawer() { openCartDrawer(); }
+              var cartComp = document.querySelector('cart-items-component');
 
-              fetch(window.location.href)
-                .then(function (r) { return r.text(); })
-                .then(function (html) {
-                  try {
-                    var doc = new DOMParser().parseFromString(html, 'text/html');
-                    var newComp = doc.querySelector('cart-items-component');
-                    var curComp = document.querySelector('cart-items-component');
-                    if (newComp && curComp) {
-                      curComp.replaceWith(newComp);
-                    }
-                  } catch (e) {}
+              function openAfter() { openCartDrawer(); }
 
-                  doOpenDrawer();
-
-                  // After drawer opens, try Horizon's own section-render method.
-                  // getSectionsToRender() + renderContents() is the exact flow
-                  // the theme uses — this fixes CSS height/layout issues.
-                  setTimeout(function () {
-                    var comp = document.querySelector('cart-items-component');
-                    if (!comp) return;
-
-                    // Method 1: Horizon/Dawn — use getSectionsToRender + fetch
-                    if (typeof comp.getSectionsToRender === 'function') {
-                      try {
-                        var sections = comp.getSectionsToRender();
-                        var root = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
-                        var param = sections.map(function (s) { return s.section; }).join(',');
-                        fetch(root + 'cart?sections=' + encodeURIComponent(param))
-                          .then(function (r) { return r.json(); })
-                          .then(function (data) {
-                            if (typeof comp.renderContents === 'function') comp.renderContents(data);
-                          })
-                          .catch(function () {});
-                        return;
-                      } catch (e) {}
-                    }
-
-                    // Method 2: direct onCartUpdate call
-                    if (typeof comp.onCartUpdate === 'function') {
-                      try { comp.onCartUpdate(); } catch (e) {}
-                    }
-
-                    // Method 3: resize to re-trigger scroll-hint height calculation
-                    window.dispatchEvent(new Event('resize'));
-                  }, 350);
-                })
-                .catch(doOpenDrawer);
+              // Strategy 1: Horizon/Dawn exposes getSectionsToRender + renderContents
+              // on the element. Use them — this is the exact internal flow the theme
+              // uses, so CSS and layout will be identical to a page refresh.
+              if (cartComp &&
+                  typeof cartComp.getSectionsToRender === 'function' &&
+                  typeof cartComp.renderContents === 'function') {
+                try {
+                  var sections = cartComp.getSectionsToRender();
+                  var root = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
+                  var param = sections.map(function (s) { return s.section; }).join(',');
+                  fetch(root + 'cart?sections=' + encodeURIComponent(param))
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                      cartComp.renderContents(data);
+                      openAfter();
+                    })
+                    .catch(openAfter);
+                } catch (e) {
+                  openAfter();
+                }
+              } else {
+                // Strategy 2: Fetch current page, extract cart-items-component,
+                // swap it in so Horizon re-initialises the element from scratch.
+                fetch(window.location.href)
+                  .then(function (r) { return r.text(); })
+                  .then(function (html) {
+                    try {
+                      var doc = new DOMParser().parseFromString(html, 'text/html');
+                      var newComp = doc.querySelector('cart-items-component');
+                      if (newComp && cartComp) cartComp.replaceWith(newComp);
+                    } catch (e) {}
+                    openAfter();
+                  })
+                  .catch(openAfter);
+              }
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
