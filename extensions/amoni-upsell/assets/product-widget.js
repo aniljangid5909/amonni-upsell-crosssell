@@ -153,55 +153,25 @@
 
               refreshBadge();
 
-              // Find the cart-items-component and its Shopify section handle
-              var cartComp = document.querySelector('cart-items-component');
-              var handle = null;
-              if (cartComp) {
-                // Walk up to find shopify-section-* wrapper (most reliable)
-                var walkEl = cartComp;
-                while (walkEl && walkEl !== document.body) {
-                  if (walkEl.id && walkEl.id.startsWith('shopify-section-')) {
-                    handle = walkEl.id.replace('shopify-section-', '');
-                    break;
-                  }
-                  var sid = walkEl.getAttribute && walkEl.getAttribute('data-section-id');
-                  if (sid) { handle = sid.replace(/^sections--\d+__/, ''); break; }
-                  walkEl = walkEl.parentElement;
-                }
-              }
-
               function doOpenDrawer() { openCartDrawer(); }
 
-              function replaceCartComp(html) {
-                try {
-                  var tmp = document.createElement('div');
-                  tmp.innerHTML = html;
-                  var newComp = tmp.querySelector('cart-items-component');
-                  var curComp = document.querySelector('cart-items-component');
-                  if (newComp && curComp) {
-                    // replaceWith triggers disconnectedCallback on old + connectedCallback
-                    // on new so Horizon re-initialises the component with correct state
-                    curComp.replaceWith(newComp);
-                  }
-                } catch (e) {}
-                doOpenDrawer();
-              }
-
-              if (handle) {
-                fetch('/?sections=' + encodeURIComponent(handle))
-                  .then(function (r) { return r.json(); })
-                  .then(function (sections) {
-                    var html = sections[handle] || sections[Object.keys(sections)[0]] || '';
-                    if (html) { replaceCartComp(html); } else { doOpenDrawer(); }
-                  })
-                  .catch(doOpenDrawer);
-              } else {
-                // Fallback: fetch current page
-                fetch(window.location.href)
-                  .then(function (r) { return r.text(); })
-                  .then(function (html) { replaceCartComp(html); })
-                  .catch(doOpenDrawer);
-              }
+              // Fetch current page — Shopify server-renders it with fresh cart state.
+              // Use replaceWith (not innerHTML) so the custom element re-initialises
+              // with correct CSS classes and layout.
+              fetch(window.location.href)
+                .then(function (r) { return r.text(); })
+                .then(function (html) {
+                  try {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var newComp = doc.querySelector('cart-items-component');
+                    var curComp = document.querySelector('cart-items-component');
+                    if (newComp && curComp) {
+                      curComp.replaceWith(newComp);
+                    }
+                  } catch (e) {}
+                  doOpenDrawer();
+                })
+                .catch(doOpenDrawer);
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
