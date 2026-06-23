@@ -156,8 +156,6 @@
               var cartComp = document.querySelector('cart-items-component');
 
               function removeEmptyClass() {
-                // cart-drawer--empty controls all the empty-state CSS in Horizon.
-                // Remove it from every matching element (outer drawer, cart-items-component, etc.)
                 document.querySelectorAll('[class*="cart-drawer--empty"], [class*="cart--empty"], [class*="is-empty"]')
                   .forEach(function (el) {
                     el.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
@@ -165,47 +163,50 @@
               }
 
               function openAfter() {
-                removeEmptyClass();          // remove before open
+                removeEmptyClass();
                 openCartDrawer();
-                setTimeout(removeEmptyClass, 100);  // remove again after connectedCallback may re-add it
-                setTimeout(removeEmptyClass, 400);  // and once more after drawer animation
+                setTimeout(removeEmptyClass, 100);
+                setTimeout(removeEmptyClass, 400);
               }
 
-              // Strategy 1: Horizon/Dawn exposes getSectionsToRender + renderContents
-              // on the element. Use them — this is the exact internal flow the theme
-              // uses, so CSS and layout will be identical to a page refresh.
-              if (cartComp &&
-                  typeof cartComp.getSectionsToRender === 'function' &&
-                  typeof cartComp.renderContents === 'function') {
-                try {
-                  var sections = cartComp.getSectionsToRender();
-                  var root = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
-                  var param = sections.map(function (s) { return s.section; }).join(',');
-                  fetch(root + 'cart?sections=' + encodeURIComponent(param))
-                    .then(function (r) { return r.json(); })
-                    .then(function (data) {
-                      cartComp.renderContents(data);
-                      openAfter();
-                    })
-                    .catch(openAfter);
-                } catch (e) {
-                  openAfter();
-                }
-              } else {
-                // Strategy 2: Fetch current page, extract cart-items-component,
-                // swap it in so Horizon re-initialises the element from scratch.
-                fetch(window.location.href)
-                  .then(function (r) { return r.text(); })
-                  .then(function (html) {
-                    try {
-                      var doc = new DOMParser().parseFromString(html, 'text/html');
+              // Only replace the scrollable items area — leave accordion-custom,
+              // text-component, cart-discount-component etc. in place so their JS
+              // initialization (and CSS) stays intact.
+              fetch(window.location.href)
+                .then(function (r) { return r.text(); })
+                .then(function (html) {
+                  try {
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+
+                    // 1. Swap only the cart items scroll area
+                    var newScroll = doc.querySelector('cart-items-component scroll-hint');
+                    var curScroll = document.querySelector('cart-items-component scroll-hint');
+                    if (newScroll && curScroll) {
+                      curScroll.innerHTML = newScroll.innerHTML;
+                    } else {
+                      // fallback: swap whole component if no scroll-hint found
                       var newComp = doc.querySelector('cart-items-component');
                       if (newComp && cartComp) cartComp.replaceWith(newComp);
-                    } catch (e) {}
-                    openAfter();
-                  })
-                  .catch(openAfter);
-              }
+                    }
+
+                    // 2. Update cart total value
+                    var newTotal = doc.querySelector('text-component[ref="cartTotal"]') ||
+                                   doc.querySelector('[data-cart-subtotal]');
+                    var curTotal = document.querySelector('text-component[ref="cartTotal"]') ||
+                                   document.querySelector('[data-cart-subtotal]');
+                    if (newTotal && curTotal) {
+                      curTotal.setAttribute('value', newTotal.getAttribute('value') || '');
+                      curTotal.textContent = newTotal.textContent;
+                    }
+
+                    // 3. Update original price line (shows crossed-out original if discounted)
+                    var newOrig = doc.querySelector('.cart-totals__original-container');
+                    var curOrig = document.querySelector('.cart-totals__original-container');
+                    if (newOrig && curOrig) curOrig.innerHTML = newOrig.innerHTML;
+                  } catch (e) {}
+                  openAfter();
+                })
+                .catch(openAfter);
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
