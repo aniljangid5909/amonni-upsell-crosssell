@@ -205,20 +205,15 @@
                       if (newComp && cartComp) cartComp.replaceWith(newComp);
                     }
 
-                    // 2. Update cart total value
-                    var newTotal = doc.querySelector('text-component[ref="cartTotal"]') ||
-                                   doc.querySelector('[data-cart-subtotal]');
-                    var curTotal = document.querySelector('text-component[ref="cartTotal"]') ||
-                                   document.querySelector('[data-cart-subtotal]');
-                    if (newTotal && curTotal) {
-                      curTotal.setAttribute('value', newTotal.getAttribute('value') || '');
-                      curTotal.textContent = newTotal.textContent;
+                    // 2. Replace cart-drawer__summary with fresh node from the server.
+                    // Using replaceWith(newNode) — not re-inserting the same node —
+                    // so accordion-custom / text-component / cart-discount-component
+                    // all get fresh connectedCallback calls and initialise correctly.
+                    var newSummary = doc.querySelector('.cart-drawer__summary');
+                    var curSummary = document.querySelector('.cart-drawer__summary');
+                    if (newSummary && curSummary) {
+                      curSummary.replaceWith(newSummary);
                     }
-
-                    // 3. Update original price line (shows crossed-out original if discounted)
-                    var newOrig = doc.querySelector('.cart-totals__original-container');
-                    var curOrig = document.querySelector('.cart-totals__original-container');
-                    if (newOrig && curOrig) curOrig.innerHTML = newOrig.innerHTML;
                   } catch (e) {}
                   openAfter();
                 })
