@@ -271,18 +271,14 @@
 
     var footer = findFooterAnchor();
 
-    console.error('[AMONI UPSELL] footer=' + (footer ? footer.tagName + '#' + footer.id + '.' + (typeof footer.className === 'string' ? footer.className : '').substring(0,30) : 'null'));
-
     // If footer not found yet, bail — MutationObserver will retry
     if (!footer) return;
 
     isInjecting = true;
     var widget = buildWidget(funnel);
 
-    // Insert before the footer (puts widget between cart items and discount/checkout)
     var footerParent = footer.parentNode;
     footerParent.insertBefore(widget, footer);
-    console.error('[AMONI UPSELL] widget inserted before ' + footer.id + ' inside ' + footerParent.tagName + '#' + footerParent.id + ' inDOM=' + !!document.getElementById(WIDGET_ID));
 
     fetch(APP_URL + '/api/events', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -298,7 +294,6 @@
       .then(function (r) { return r.json(); })
       .then(function (cart) {
         var ids = (cart.items || []).map(function (i) { return String(i.product_id); });
-        console.error('[AMONI UPSELL] cart items=' + JSON.stringify(ids));
         if (!ids.length) return;
         var hash = ids.join(',');
 
@@ -310,19 +305,17 @@
         fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(SHOP) + '&placement=cart&productIds=' + hash)
           .then(function (r) { return r.json(); })
           .then(function (data) {
-            console.error('[AMONI UPSELL] funnels=' + JSON.stringify(data.funnels ? data.funnels.length : 'none'));
             var funnels = data.funnels || [];
-            if (!funnels.length) return;
-            cachedFunnel = funnels[0];
             cachedCartHash = hash;
+            if (!funnels.length) { cachedFunnel = null; return; }
+            cachedFunnel = funnels[0];
             injectIntoDrawer(drawer, cachedFunnel);
-          }).catch(function (e) { console.error('[AMONI UPSELL] funnels error: ' + e); });
+          }).catch(function () {});
       }).catch(function () {});
   }
 
   // ── Watch document.body for any cart DOM changes ──
   function watchDrawer(drawer) {
-    console.error('[AMONI UPSELL] watching body for cart changes...');
 
     // Watch body — catches Horizon full re-renders of cart drawer contents
     var observer = new MutationObserver(function (mutations) {
@@ -362,12 +355,12 @@
       });
     });
 
-    // Also poll every 2s as safety net
+    // Poll every 3s as safety net — only if a funnel is known to exist
     setInterval(function () {
-      if (!document.getElementById(WIDGET_ID)) {
+      if (cachedFunnel && !document.getElementById(WIDGET_ID) && !window._amoniProductUpdating) {
         fetchAndInject(drawer);
       }
-    }, 2000);
+    }, 3000);
 
     // Try injecting immediately
     fetchAndInject(drawer);
@@ -404,7 +397,6 @@
           if (combined.indexOf(SKIP[k]) !== -1) { skip = true; break; }
         }
         if (!skip) {
-          console.error('[AMONI UPSELL] cart element found: ' + selectors[i] + ' tag=' + el.tagName + ' id=' + el.id + ' class=' + cls.substring(0, 60));
           return el;
         }
       }
@@ -414,27 +406,11 @@
 
   // ── Start when DOM is ready ──
   function init() {
-    console.error('[AMONI UPSELL] script running, shop=' + SHOP);
     var drawer = findCartDrawer();
     if (drawer) {
       watchDrawer(drawer);
     } else {
-      console.error('[AMONI UPSELL] no cart element found — watching body for changes');
-      // Log all custom elements in body to help identify cart element
-      var allTags = {};
-      document.body.querySelectorAll('*').forEach(function(el) {
-        if (el.tagName.indexOf('-') !== -1) allTags[el.tagName.toLowerCase()] = true;
-      });
-      console.error('[AMONI UPSELL] custom elements on page: ' + Object.keys(allTags).join(', '));
-
       var bodyObserver = new MutationObserver(function (mutations) {
-        mutations.forEach(function(m) {
-          m.addedNodes.forEach(function(node) {
-            if (node.nodeType === 1) {
-              console.error('[AMONI UPSELL] node added: ' + node.tagName + ' id=' + node.id);
-            }
-          });
-        });
         var d = findCartDrawer();
         if (d) {
           bodyObserver.disconnect();

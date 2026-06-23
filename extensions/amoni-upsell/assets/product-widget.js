@@ -196,7 +196,9 @@
                   try {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    // Swap only the items scroll area
+                    // Swap only the items scroll area — do NOT touch cart-drawer__summary
+                    // (its custom elements already ran connectedCallback on page load;
+                    // removing cart-drawer--empty below is the only CSS fix needed)
                     var newScroll = doc.querySelector('cart-items-component scroll-hint');
                     var curScroll = document.querySelector('cart-items-component scroll-hint');
                     if (newScroll && curScroll) {
@@ -205,11 +207,6 @@
                       var newComp = doc.querySelector('cart-items-component');
                       if (newComp && cartComp) cartComp.replaceWith(newComp);
                     }
-
-                    // Replace summary with fresh node so custom elements re-init
-                    var newSummary = doc.querySelector('.cart-drawer__summary');
-                    var curSummary = document.querySelector('.cart-drawer__summary');
-                    if (newSummary && curSummary) curSummary.replaceWith(newSummary);
                   } catch (e) {}
 
                   lockOutEmptyClass();
