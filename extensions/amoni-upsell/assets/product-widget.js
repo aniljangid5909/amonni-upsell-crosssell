@@ -174,7 +174,9 @@
                 setTimeout(function () { window._amoniProductUpdating = false; }, 2000);
               }
 
-              // Block the theme from re-adding cart-drawer--empty via MutationObserver
+              // Block the theme from re-adding cart-drawer--empty via MutationObserver,
+              // then force-reinit summary custom elements by cloning them (clones are
+              // new instances with no init guard, so connectedCallback runs fresh).
               function lockOutEmptyClass() {
                 var drawerEl =
                   document.querySelector('cart-drawer') ||
@@ -188,6 +190,18 @@
                 });
                 obs.observe(drawerEl, { attributes: true, attributeFilter: ['class'] });
                 setTimeout(function () { obs.disconnect(); }, 5000);
+
+                // Clone custom elements in cart-drawer__summary so they get fresh
+                // connectedCallback calls (bypasses the `if (this.initialized) return` guard).
+                setTimeout(function () {
+                  var summary = document.querySelector('.cart-drawer__summary');
+                  if (!summary) return;
+                  summary.querySelectorAll('accordion-custom, text-component, cart-discount-component, cart-note')
+                    .forEach(function (el) {
+                      var clone = el.cloneNode(true);
+                      el.replaceWith(clone);
+                    });
+                }, 50);
               }
 
               fetch(window.location.href)
