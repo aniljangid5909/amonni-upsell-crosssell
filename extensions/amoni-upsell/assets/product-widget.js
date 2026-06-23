@@ -123,25 +123,37 @@
           btn.textContent = 'Adding...';
           btn.disabled = true;
 
+          // Find the Shopify section handle for the cart drawer
+          var cartSectionEl = null;
+          document.querySelectorAll('[id^="shopify-section"]').forEach(function (s) {
+            if (!cartSectionEl && (s.querySelector('cart-drawer') || s.querySelector('[class*="cart-drawer__inner"]'))) {
+              cartSectionEl = s;
+            }
+          });
+          var cartSectionHandle = cartSectionEl
+            ? cartSectionEl.id.replace('shopify-section-', '')
+            : 'cart-drawer';
+
           fetch('/cart/add.js', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: items }),
+            body: JSON.stringify({ items: items, sections: cartSectionHandle }),
           })
             .then(function (r) {
               if (!r.ok) throw new Error('cart error');
               return r.json();
             })
-            .then(function () {
+            .then(function (addData) {
               if (discountCode) {
                 return fetch('/cart/update.js', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ discount: discountCode }),
-                });
+                }).then(function () { return addData; });
               }
+              return addData;
             })
-            .then(function () {
+            .then(function (addData) {
               btn.textContent = '✓ Added!';
               btn.style.background = '#0c8a4f';
 
@@ -152,10 +164,6 @@
               });
 
               refreshBadge();
-
-              var cartComp = document.querySelector('cart-items-component');
-
-              // Tell app-embed.liquid's MutationObserver to stand down during our DOM update
               window._amoniProductUpdating = true;
 
               function removeEmptyClass() {
@@ -169,50 +177,48 @@
                 removeEmptyClass();
                 openCartDrawer();
                 setTimeout(removeEmptyClass, 150);
-                setTimeout(removeEmptyClass, 500);
-                // Release the hold after the drawer has fully opened and settled
+                setTimeout(removeEmptyClass, 600);
                 setTimeout(function () { window._amoniProductUpdating = false; }, 2000);
               }
 
-              // Block the theme from re-adding cart-drawer--empty via MutationObserver,
-              // then force-reinit summary custom elements by cloning them (clones are
-              // new instances with no init guard, so connectedCallback runs fresh).
-              function lockOutEmptyClass() {
-                var drawerEl =
-                  document.querySelector('cart-drawer') ||
-                  document.querySelector('[id*="CartDrawer"]') ||
-                  document.querySelector('[id*="cart-drawer"]') ||
-                  document.querySelector('aside[class*="cart-drawer"]');
-                if (!drawerEl) return;
+              // Lock out cart-drawer--empty class and watch for it being re-added
+              function lockEmptyClass(drawerEl) {
                 drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
                 var obs = new MutationObserver(function () {
                   drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
                 });
                 obs.observe(drawerEl, { attributes: true, attributeFilter: ['class'] });
                 setTimeout(function () { obs.disconnect(); }, 5000);
-
-                // Clone custom elements in cart-drawer__summary so they get fresh
-                // connectedCallback calls (bypasses the `if (this.initialized) return` guard).
-                setTimeout(function () {
-                  var summary = document.querySelector('.cart-drawer__summary');
-                  if (!summary) return;
-                  summary.querySelectorAll('accordion-custom, text-component, cart-discount-component, cart-note')
-                    .forEach(function (el) {
-                      var clone = el.cloneNode(true);
-                      el.replaceWith(clone);
-                    });
-                }, 50);
               }
 
+              var sectionHtml = addData && addData.sections && addData.sections[cartSectionHandle];
+              if (sectionHtml) {
+                // ── Best path: Shopify returned fresh cart-section HTML in the add response ──
+                // Replace only the inner content of cart-drawer (not the element itself,
+                // so the custom element's own connectedCallback doesn't re-fire and
+                // override what we set). All child custom elements are new nodes and will
+                // run their connectedCallback fresh with no init-guard issues.
+                try {
+                  var tmp = document.createElement('div');
+                  tmp.innerHTML = sectionHtml;
+                  var newDrawer = tmp.querySelector('cart-drawer');
+                  var curDrawer = document.querySelector('cart-drawer');
+                  if (newDrawer && curDrawer) {
+                    curDrawer.innerHTML = newDrawer.innerHTML;
+                    lockEmptyClass(curDrawer);
+                    openAfter();
+                    return;
+                  }
+                } catch (e) {}
+              }
+
+              // ── Fallback: fetch the full page and extract cart items ──
+              var cartComp = document.querySelector('cart-items-component');
               fetch(window.location.href)
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
                   try {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
-
-                    // Swap only the items scroll area — do NOT touch cart-drawer__summary
-                    // (its custom elements already ran connectedCallback on page load;
-                    // removing cart-drawer--empty below is the only CSS fix needed)
                     var newScroll = doc.querySelector('cart-items-component scroll-hint');
                     var curScroll = document.querySelector('cart-items-component scroll-hint');
                     if (newScroll && curScroll) {
@@ -222,14 +228,12 @@
                       if (newComp && cartComp) cartComp.replaceWith(newComp);
                     }
                   } catch (e) {}
-
-                  lockOutEmptyClass();
+                  var drawerEl = document.querySelector('cart-drawer') ||
+                    document.querySelector('[id*="cart-drawer"]');
+                  if (drawerEl) lockEmptyClass(drawerEl);
                   openAfter();
                 })
-                .catch(function () {
-                  lockOutEmptyClass();
-                  openAfter();
-                });
+                .catch(openAfter);
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
