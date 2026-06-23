@@ -162,11 +162,27 @@
                   });
               }
 
+              function reinitSummary() {
+                // When the page loaded with an empty cart, cart-drawer__summary was
+                // hidden (via cart-drawer--empty CSS), so accordion-custom, text-component
+                // etc. never ran connectedCallback and never initialised.
+                // Re-inserting the element fires connectedCallback on all children.
+                var summary = document.querySelector('.cart-drawer__summary');
+                if (summary && summary.parentNode) {
+                  var p = summary.parentNode, n = summary.nextSibling;
+                  p.removeChild(summary);
+                  p.insertBefore(summary, n);
+                }
+              }
+
               function openAfter() {
                 removeEmptyClass();
                 openCartDrawer();
-                setTimeout(removeEmptyClass, 100);
-                setTimeout(removeEmptyClass, 400);
+                setTimeout(function () {
+                  removeEmptyClass();
+                  reinitSummary();
+                }, 150);
+                setTimeout(removeEmptyClass, 500);
               }
 
               // Only replace the scrollable items area — leave accordion-custom,
