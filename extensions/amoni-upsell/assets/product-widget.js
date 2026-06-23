@@ -186,6 +186,19 @@
                 openCartDrawer();
                 setTimeout(removeEmptyClass, 150);
                 setTimeout(removeEmptyClass, 600);
+                // Re-clone custom elements AFTER the drawer is painted/visible so
+                // their connectedCallback can measure layout and apply correct classes
+                // (accordion header alignment, discount pill, two-column totals, etc.)
+                setTimeout(function () {
+                  removeEmptyClass();
+                  document.querySelectorAll(
+                    'cart-drawer accordion-custom, cart-drawer text-component, ' +
+                    'cart-drawer cart-discount-component, cart-drawer cart-note'
+                  ).forEach(function (el) {
+                    var clone = el.cloneNode(true);
+                    el.replaceWith(clone);
+                  });
+                }, 200);
                 setTimeout(function () { window._amoniProductUpdating = false; }, 2000);
               }
 
