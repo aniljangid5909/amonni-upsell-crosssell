@@ -153,34 +153,25 @@
 
               refreshBadge();
 
-              // Open cart drawer first
-              openCartDrawer();
+              // Fetch the current page (server always renders fresh cart state)
+              // extract cart-items-component, inject it, THEN open the drawer.
+              // This is the most reliable cross-theme approach.
+              function doOpenDrawer() { openCartDrawer(); }
 
-              // After drawer is open, trigger every known refresh mechanism
-              setTimeout(function () {
-                // 1. Shopify global pub/sub — Horizon and Dawn subscribe to this
-                if (window.publish) {
-                  var evt =
-                    (window.PUB_SUB_EVENTS && window.PUB_SUB_EVENTS.cartUpdate) ||
-                    (window.Shopify && window.Shopify.PUBSUBEvents && window.Shopify.PUBSUBEvents.cartUpdate) ||
-                    'cart-update';
-                  try { window.publish(evt, { cart: null }); } catch (e) {}
-                }
-
-                // 2. Direct call on cart-items-component (Horizon)
-                var cartComp = document.querySelector('cart-items-component');
-                if (cartComp) {
-                  if (typeof cartComp.onCartUpdate === 'function') try { cartComp.onCartUpdate(); } catch (e) {}
-                  else if (typeof cartComp.refresh === 'function') try { cartComp.refresh(); } catch (e) {}
-                  else if (typeof cartComp.renderContents === 'function') try { cartComp.renderContents({}); } catch (e) {}
-                }
-
-                // 3. Generic events for other themes
-                ['cart:refresh', 'cart:updated', 'cart-update', 'theme:cart:refresh'].forEach(function (n) {
-                  document.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-                  window.dispatchEvent(new CustomEvent(n, { bubbles: true }));
-                });
-              }, 300);
+              fetch(window.location.href)
+                .then(function (r) { return r.text(); })
+                .then(function (pageHtml) {
+                  try {
+                    var doc = new DOMParser().parseFromString(pageHtml, 'text/html');
+                    var srcComp = doc.querySelector('cart-items-component');
+                    var dstComp = document.querySelector('cart-items-component');
+                    if (srcComp && dstComp) {
+                      dstComp.innerHTML = srcComp.innerHTML;
+                    }
+                  } catch (e) {}
+                  doOpenDrawer();
+                })
+                .catch(doOpenDrawer);
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
