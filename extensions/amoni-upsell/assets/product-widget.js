@@ -155,9 +155,6 @@
 
               function doOpenDrawer() { openCartDrawer(); }
 
-              // Fetch current page — Shopify server-renders it with fresh cart state.
-              // Use replaceWith (not innerHTML) so the custom element re-initialises
-              // with correct CSS classes and layout.
               fetch(window.location.href)
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
@@ -169,7 +166,40 @@
                       curComp.replaceWith(newComp);
                     }
                   } catch (e) {}
+
                   doOpenDrawer();
+
+                  // After drawer opens, try Horizon's own section-render method.
+                  // getSectionsToRender() + renderContents() is the exact flow
+                  // the theme uses — this fixes CSS height/layout issues.
+                  setTimeout(function () {
+                    var comp = document.querySelector('cart-items-component');
+                    if (!comp) return;
+
+                    // Method 1: Horizon/Dawn — use getSectionsToRender + fetch
+                    if (typeof comp.getSectionsToRender === 'function') {
+                      try {
+                        var sections = comp.getSectionsToRender();
+                        var root = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
+                        var param = sections.map(function (s) { return s.section; }).join(',');
+                        fetch(root + 'cart?sections=' + encodeURIComponent(param))
+                          .then(function (r) { return r.json(); })
+                          .then(function (data) {
+                            if (typeof comp.renderContents === 'function') comp.renderContents(data);
+                          })
+                          .catch(function () {});
+                        return;
+                      } catch (e) {}
+                    }
+
+                    // Method 2: direct onCartUpdate call
+                    if (typeof comp.onCartUpdate === 'function') {
+                      try { comp.onCartUpdate(); } catch (e) {}
+                    }
+
+                    // Method 3: resize to re-trigger scroll-hint height calculation
+                    window.dispatchEvent(new Event('resize'));
+                  }, 350);
                 })
                 .catch(doOpenDrawer);
             })
