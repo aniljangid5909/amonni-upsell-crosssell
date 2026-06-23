@@ -163,30 +163,14 @@
                 .then(function (pageHtml) {
                   try {
                     var doc = new DOMParser().parseFromString(pageHtml, 'text/html');
-                    // Be surgical: only replace the scrollable items area, not the full
-                    // component. This preserves Horizon's JS-applied CSS state on the
-                    // outer cart-items-component element and its summary/totals section.
-                    var selectors = [
-                      'cart-items-component scroll-hint',
-                      'cart-items-component .cart-drawer__content',
-                      'cart-items-component [class*="cart-items__content"]',
-                      'cart-items-component [class*="cart__items"]',
-                    ];
-                    var swapped = false;
-                    for (var si = 0; si < selectors.length; si++) {
-                      var srcEl = doc.querySelector(selectors[si]);
-                      var dstEl = document.querySelector(selectors[si]);
-                      if (srcEl && dstEl) {
-                        dstEl.innerHTML = srcEl.innerHTML;
-                        swapped = true;
-                        break;
-                      }
-                    }
-                    // Fallback: replace the whole component if no inner selector matched
-                    if (!swapped) {
-                      var srcComp = doc.querySelector('cart-items-component');
-                      var dstComp = document.querySelector('cart-items-component');
-                      if (srcComp && dstComp) dstComp.innerHTML = srcComp.innerHTML;
+                    var srcComp = doc.querySelector('cart-items-component');
+                    var dstComp = document.querySelector('cart-items-component');
+                    if (srcComp && dstComp) {
+                      // Copy className: the live element has empty-state classes
+                      // (e.g. "is-empty") set by Horizon on page load. The fetched
+                      // page renders with items, so its classes reflect the correct state.
+                      dstComp.className = srcComp.className;
+                      dstComp.innerHTML = srcComp.innerHTML;
                     }
                   } catch (e) {}
                   doOpenDrawer();
