@@ -153,17 +153,23 @@
 
               refreshBadge();
 
-              // Remove the empty-state class from the cart drawer immediately —
-              // this is what Horizon uses to control the "Your cart is empty" layout.
-              // After a page refresh Shopify removes it server-side; we do it here.
-              document.querySelectorAll('[class*="cart-drawer--empty"], [class*="cart--empty"], [class*="is-empty"]')
-                .forEach(function (el) {
-                  el.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
-                });
-
               var cartComp = document.querySelector('cart-items-component');
 
-              function openAfter() { openCartDrawer(); }
+              function removeEmptyClass() {
+                // cart-drawer--empty controls all the empty-state CSS in Horizon.
+                // Remove it from every matching element (outer drawer, cart-items-component, etc.)
+                document.querySelectorAll('[class*="cart-drawer--empty"], [class*="cart--empty"], [class*="is-empty"]')
+                  .forEach(function (el) {
+                    el.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
+                  });
+              }
+
+              function openAfter() {
+                removeEmptyClass();          // remove before open
+                openCartDrawer();
+                setTimeout(removeEmptyClass, 100);  // remove again after connectedCallback may re-add it
+                setTimeout(removeEmptyClass, 400);  // and once more after drawer animation
+              }
 
               // Strategy 1: Horizon/Dawn exposes getSectionsToRender + renderContents
               // on the element. Use them — this is the exact internal flow the theme
