@@ -155,6 +155,9 @@
 
               var cartComp = document.querySelector('cart-items-component');
 
+              // Tell app-embed.liquid's MutationObserver to stand down during our DOM update
+              window._amoniProductUpdating = true;
+
               function removeEmptyClass() {
                 document.querySelectorAll('[class*="cart-drawer--empty"], [class*="cart--empty"], [class*="is-empty"]')
                   .forEach(function (el) {
@@ -162,34 +165,16 @@
                   });
               }
 
-              function reinitSummary() {
-                // When the page loaded with an empty cart, cart-drawer__summary was
-                // hidden (via cart-drawer--empty CSS), so accordion-custom, text-component
-                // etc. never ran connectedCallback and never initialised.
-                // Re-inserting the element fires connectedCallback on all children.
-                var summary = document.querySelector('.cart-drawer__summary');
-                if (summary && summary.parentNode) {
-                  var p = summary.parentNode, n = summary.nextSibling;
-                  p.removeChild(summary);
-                  p.insertBefore(summary, n);
-                }
-              }
-
               function openAfter() {
                 removeEmptyClass();
                 openCartDrawer();
-                setTimeout(function () {
-                  removeEmptyClass();
-                  reinitSummary();
-                }, 150);
+                setTimeout(removeEmptyClass, 150);
                 setTimeout(removeEmptyClass, 500);
+                // Release the hold after the drawer has fully opened and settled
+                setTimeout(function () { window._amoniProductUpdating = false; }, 2000);
               }
 
-              // After cart add, fetch the page — server renders updated cart state.
-              // We avoid replacing the cart-drawer element itself (that re-fires
-              // connectedCallback and the theme re-renders as empty). Instead we
-              // only swap the scrollable items area and use a MutationObserver to
-              // permanently block the theme from re-adding cart-drawer--empty.
+              // Block the theme from re-adding cart-drawer--empty via MutationObserver
               function lockOutEmptyClass() {
                 var drawerEl =
                   document.querySelector('cart-drawer') ||
@@ -199,14 +184,9 @@
                 if (!drawerEl) return;
                 drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
                 var obs = new MutationObserver(function () {
-                  if (drawerEl.classList.contains('cart-drawer--empty') ||
-                      drawerEl.classList.contains('cart--empty') ||
-                      drawerEl.classList.contains('is-empty')) {
-                    drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
-                  }
+                  drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
                 });
                 obs.observe(drawerEl, { attributes: true, attributeFilter: ['class'] });
-                // Disconnect after 5 s — enough for all theme reactions to settle
                 setTimeout(function () { obs.disconnect(); }, 5000);
               }
 
@@ -216,7 +196,7 @@
                   try {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    // Swap only the items scroll area (safe — doesn't re-fire cart-drawer connectedCallback)
+                    // Swap only the items scroll area
                     var newScroll = doc.querySelector('cart-items-component scroll-hint');
                     var curScroll = document.querySelector('cart-items-component scroll-hint');
                     if (newScroll && curScroll) {
@@ -226,8 +206,7 @@
                       if (newComp && cartComp) cartComp.replaceWith(newComp);
                     }
 
-                    // Replace summary with fresh node so accordion-custom /
-                    // text-component / cart-discount-component run connectedCallback
+                    // Replace summary with fresh node so custom elements re-init
                     var newSummary = doc.querySelector('.cart-drawer__summary');
                     var curSummary = document.querySelector('.cart-drawer__summary');
                     if (newSummary && curSummary) curSummary.replaceWith(newSummary);

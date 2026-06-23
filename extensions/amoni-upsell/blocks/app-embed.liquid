@@ -326,6 +326,9 @@
 
     // Watch body — catches Horizon full re-renders of cart drawer contents
     var observer = new MutationObserver(function (mutations) {
+      // Stand down while product-widget.js is updating the cart drawer DOM
+      if (window._amoniProductUpdating) return;
+
       // Skip mutations caused by our own widget insertion
       for (var i = 0; i < mutations.length; i++) {
         var m = mutations[i];
@@ -334,19 +337,19 @@
         }
         for (var j = 0; j < m.removedNodes.length; j++) {
           if (m.removedNodes[j].id === WIDGET_ID) {
-            // Widget was removed externally — re-inject immediately
+            // Widget was removed externally — re-inject after a short pause
             clearTimeout(injectTimer);
             injectTimer = setTimeout(function () {
-              if (!isInjecting) fetchAndInject(drawer);
-            }, 150);
+              if (!isInjecting && !window._amoniProductUpdating) fetchAndInject(drawer);
+            }, 300);
             return;
           }
         }
       }
       clearTimeout(injectTimer);
       injectTimer = setTimeout(function () {
-        if (!isInjecting && !document.getElementById(WIDGET_ID)) fetchAndInject(drawer);
-      }, 150);
+        if (!isInjecting && !window._amoniProductUpdating && !document.getElementById(WIDGET_ID)) fetchAndInject(drawer);
+      }, 300);
     });
     observer.observe(document.body, { childList: true, subtree: true });
 
