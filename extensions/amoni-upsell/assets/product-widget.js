@@ -11,7 +11,15 @@
 
   // ── Open the cart drawer using the theme's own mechanism ──
   function openCartDrawer() {
-    // Try: click the cart icon/button (most reliable — theme handles the rest)
+    // Priority: call cart-drawer.open() directly — Horizon's open() just shows the
+    // drawer without re-fetching/re-rendering, so our pre-set innerHTML stays intact.
+    var cartDrawerEl = document.querySelector('cart-drawer');
+    if (cartDrawerEl && typeof cartDrawerEl.open === 'function') {
+      cartDrawerEl.open();
+      return;
+    }
+
+    // Fallback: click the cart icon/button
     var cartBtn =
       document.querySelector('[href="/cart"][class*="icon"]') ||
       document.querySelector('[aria-label*="cart" i]:not([class*="close"]):not([class*="item"])') ||
@@ -192,6 +200,7 @@
               }
 
               var sectionHtml = addData && addData.sections && addData.sections[cartSectionHandle];
+              console.log('[AMONI] sectionHandle=' + cartSectionHandle + ' sectionHtml=' + (sectionHtml ? sectionHtml.length + ' chars' : 'null'));
               if (sectionHtml) {
                 // ── Best path: Shopify returned fresh cart-section HTML in the add response ──
                 // Replace only the inner content of cart-drawer (not the element itself,
