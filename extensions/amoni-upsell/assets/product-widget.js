@@ -166,14 +166,19 @@
                     var srcComp = doc.querySelector('cart-items-component');
                     var dstComp = document.querySelector('cart-items-component');
                     if (srcComp && dstComp) {
-                      // Copy className: the live element has empty-state classes
-                      // (e.g. "is-empty") set by Horizon on page load. The fetched
-                      // page renders with items, so its classes reflect the correct state.
-                      dstComp.className = srcComp.className;
+                      // Copy all attributes so empty-state classes/styles are replaced
+                      Array.from(srcComp.attributes).forEach(function (attr) {
+                        try { dstComp.setAttribute(attr.name, attr.value); } catch (e) {}
+                      });
                       dstComp.innerHTML = srcComp.innerHTML;
                     }
                   } catch (e) {}
                   doOpenDrawer();
+                  // After drawer animation completes, trigger layout recalculation
+                  // so scroll-hint resizes itself correctly for the new content.
+                  setTimeout(function () {
+                    window.dispatchEvent(new Event('resize'));
+                  }, 350);
                 })
                 .catch(doOpenDrawer);
             })
