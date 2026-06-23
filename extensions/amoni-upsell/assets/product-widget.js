@@ -185,54 +185,61 @@
                 setTimeout(removeEmptyClass, 500);
               }
 
-              // Fetch the page after cart add — server renders full cart state.
-              // Replace the entire cart-drawer inner content so all custom elements
-              // (accordion-custom, text-component, cart-discount-component) get
-              // fresh connectedCallback calls with correct CSS.
+              // After cart add, fetch the page — server renders updated cart state.
+              // We avoid replacing the cart-drawer element itself (that re-fires
+              // connectedCallback and the theme re-renders as empty). Instead we
+              // only swap the scrollable items area and use a MutationObserver to
+              // permanently block the theme from re-adding cart-drawer--empty.
+              function lockOutEmptyClass() {
+                var drawerEl =
+                  document.querySelector('cart-drawer') ||
+                  document.querySelector('[id*="CartDrawer"]') ||
+                  document.querySelector('[id*="cart-drawer"]') ||
+                  document.querySelector('aside[class*="cart-drawer"]');
+                if (!drawerEl) return;
+                drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
+                var obs = new MutationObserver(function () {
+                  if (drawerEl.classList.contains('cart-drawer--empty') ||
+                      drawerEl.classList.contains('cart--empty') ||
+                      drawerEl.classList.contains('is-empty')) {
+                    drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
+                  }
+                });
+                obs.observe(drawerEl, { attributes: true, attributeFilter: ['class'] });
+                // Disconnect after 5 s — enough for all theme reactions to settle
+                setTimeout(function () { obs.disconnect(); }, 5000);
+              }
+
               fetch(window.location.href)
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
                   try {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    // Strategy: replace the entire cart-drawer element so every
-                    // child custom element initialises fresh (no init-guard bypass needed).
-                    var selectors = [
-                      'cart-drawer',
-                      '[id*="CartDrawer"]',
-                      '[id*="cart-drawer"]',
-                      'aside[class*="cart-drawer"]',
-                      'div[class*="cart-drawer"]:not([class*="header"]):not([class*="item"])',
-                    ];
-                    var newDrawer, curDrawer;
-                    for (var i = 0; i < selectors.length; i++) {
-                      newDrawer = doc.querySelector(selectors[i]);
-                      curDrawer = document.querySelector(selectors[i]);
-                      if (newDrawer && curDrawer) break;
+                    // Swap only the items scroll area (safe — doesn't re-fire cart-drawer connectedCallback)
+                    var newScroll = doc.querySelector('cart-items-component scroll-hint');
+                    var curScroll = document.querySelector('cart-items-component scroll-hint');
+                    if (newScroll && curScroll) {
+                      curScroll.innerHTML = newScroll.innerHTML;
+                    } else {
+                      var newComp = doc.querySelector('cart-items-component');
+                      if (newComp && cartComp) cartComp.replaceWith(newComp);
                     }
 
-                    if (newDrawer && curDrawer) {
-                      // Strip empty-state class from the incoming node before inserting
-                      newDrawer.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
-                      curDrawer.replaceWith(newDrawer);
-                    } else {
-                      // Fallback: swap items + summary individually
-                      var newScroll = doc.querySelector('cart-items-component scroll-hint');
-                      var curScroll = document.querySelector('cart-items-component scroll-hint');
-                      if (newScroll && curScroll) {
-                        curScroll.innerHTML = newScroll.innerHTML;
-                      } else {
-                        var newComp = doc.querySelector('cart-items-component');
-                        if (newComp && cartComp) cartComp.replaceWith(newComp);
-                      }
-                      var newSummary = doc.querySelector('.cart-drawer__summary');
-                      var curSummary = document.querySelector('.cart-drawer__summary');
-                      if (newSummary && curSummary) curSummary.replaceWith(newSummary);
-                    }
+                    // Replace summary with fresh node so accordion-custom /
+                    // text-component / cart-discount-component run connectedCallback
+                    var newSummary = doc.querySelector('.cart-drawer__summary');
+                    var curSummary = document.querySelector('.cart-drawer__summary');
+                    if (newSummary && curSummary) curSummary.replaceWith(newSummary);
                   } catch (e) {}
+
+                  lockOutEmptyClass();
                   openAfter();
                 })
-                .catch(openAfter);
+                .catch(function () {
+                  lockOutEmptyClass();
+                  openAfter();
+                });
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
