@@ -176,93 +176,74 @@
 
               function removeEmptyClass() {
                 document.querySelectorAll('[class*="cart-drawer--empty"], [class*="cart--empty"], [class*="is-empty"]')
-                  .forEach(function (el) {
-                    el.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
-                  });
+                  .forEach(function (e) { e.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty'); });
               }
 
-              function openAfter() {
-                removeEmptyClass();
-                openCartDrawer();
-                setTimeout(removeEmptyClass, 150);
-                setTimeout(removeEmptyClass, 600);
+              function lockEmptyClass() {
+                var d = document.querySelector('cart-drawer');
+                if (!d) return;
+                d.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
+                var obs = new MutationObserver(function () {
+                  d.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
+                });
+                obs.observe(d, { attributes: true, attributeFilter: ['class'] });
+                setTimeout(function () { obs.disconnect(); }, 6000);
+              }
 
-                // Horizon lazy-loads cart JS (accordion-custom, text-component, etc.)
-                // only when the drawer first opens. Wait until those definitions exist,
-                // then clone the elements so connectedCallback fires while visible.
-                var ceNames = ['accordion-custom', 'text-component', 'cart-discount-component'];
-                var whenAllDefined = Promise.all(ceNames.map(function (n) {
-                  return customElements.whenDefined(n);
-                }));
-                var timeout = new Promise(function (res) { setTimeout(res, 3000); });
-                Promise.race([whenAllDefined, timeout]).then(function () {
+              function finalizeAndOpen() {
+                removeEmptyClass();
+                lockEmptyClass();
+                openCartDrawer();
+
+                // Wait for Horizon lazy-loaded custom element definitions, then
+                // clone each one so connectedCallback fires while drawer is visible.
+                var names = ['accordion-custom', 'text-component', 'cart-discount-component'];
+                Promise.race([
+                  Promise.all(names.map(function (n) { return customElements.whenDefined(n); })),
+                  new Promise(function (r) { setTimeout(r, 3000); })
+                ]).then(function () {
                   removeEmptyClass();
                   document.querySelectorAll(
                     'cart-drawer accordion-custom, cart-drawer text-component, ' +
                     'cart-drawer cart-discount-component, cart-drawer cart-note'
-                  ).forEach(function (el) {
-                    var clone = el.cloneNode(true);
-                    el.replaceWith(clone);
-                  });
+                  ).forEach(function (el) { el.replaceWith(el.cloneNode(true)); });
                   removeEmptyClass();
                   setTimeout(function () { window._amoniProductUpdating = false; }, 500);
                 });
               }
 
-              // Lock out cart-drawer--empty class and watch for it being re-added
-              function lockEmptyClass(drawerEl) {
-                drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
-                var obs = new MutationObserver(function () {
-                  drawerEl.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
-                });
-                obs.observe(drawerEl, { attributes: true, attributeFilter: ['class'] });
-                setTimeout(function () { obs.disconnect(); }, 5000);
-              }
-
               var sectionHtml = addData && addData.sections && addData.sections[cartSectionHandle];
-              console.log('[AMONI] sectionHandle=' + cartSectionHandle + ' sectionHtml=' + (sectionHtml ? sectionHtml.length + ' chars' : 'null'));
-              if (sectionHtml) {
-                // ── Best path: Shopify returned fresh cart-section HTML in the add response ──
-                // Replace only the inner content of cart-drawer (not the element itself,
-                // so the custom element's own connectedCallback doesn't re-fire and
-                // override what we set). All child custom elements are new nodes and will
-                // run their connectedCallback fresh with no init-guard issues.
-                try {
-                  var tmp = document.createElement('div');
-                  tmp.innerHTML = sectionHtml;
-                  var newDrawer = tmp.querySelector('cart-drawer');
-                  var curDrawer = document.querySelector('cart-drawer');
-                  if (newDrawer && curDrawer) {
-                    curDrawer.innerHTML = newDrawer.innerHTML;
-                    lockEmptyClass(curDrawer);
-                    openAfter();
-                    return;
-                  }
-                } catch (e) {}
-              }
 
-              // ── Fallback: fetch the full page and extract cart items ──
-              var cartComp = document.querySelector('cart-items-component');
-              fetch(window.location.href)
-                .then(function (r) { return r.text(); })
-                .then(function (html) {
-                  try {
-                    var doc = new DOMParser().parseFromString(html, 'text/html');
-                    var newScroll = doc.querySelector('cart-items-component scroll-hint');
-                    var curScroll = document.querySelector('cart-items-component scroll-hint');
-                    if (newScroll && curScroll) {
-                      curScroll.innerHTML = newScroll.innerHTML;
-                    } else {
-                      var newComp = doc.querySelector('cart-items-component');
-                      if (newComp && cartComp) cartComp.replaceWith(newComp);
-                    }
-                  } catch (e) {}
-                  var drawerEl = document.querySelector('cart-drawer') ||
-                    document.querySelector('[id*="cart-drawer"]');
-                  if (drawerEl) lockEmptyClass(drawerEl);
-                  openAfter();
-                })
-                .catch(openAfter);
+              if (sectionHtml) {
+                // ── Best path: replace entire shopify-section with fresh Liquid HTML ──
+                // outerHTML swap reinstalls cart-drawer as a brand-new element so
+                // connectedCallback fires fresh, no init guards, correct filled-cart CSS.
+                var sectionDomEl = cartSectionEl ||
+                  document.getElementById('shopify-section-' + cartSectionHandle);
+                if (sectionDomEl) {
+                  sectionDomEl.outerHTML = sectionHtml;
+                }
+                finalizeAndOpen();
+              } else {
+                // ── Fallback: swap scroll-hint from page fetch ──
+                var cartComp = document.querySelector('cart-items-component');
+                fetch(window.location.href)
+                  .then(function (r) { return r.text(); })
+                  .then(function (html) {
+                    try {
+                      var doc = new DOMParser().parseFromString(html, 'text/html');
+                      var ns = doc.querySelector('cart-items-component scroll-hint');
+                      var cs = document.querySelector('cart-items-component scroll-hint');
+                      if (ns && cs) { cs.innerHTML = ns.innerHTML; }
+                      else {
+                        var nc = doc.querySelector('cart-items-component');
+                        if (nc && cartComp) cartComp.replaceWith(nc);
+                      }
+                    } catch (e) {}
+                    finalizeAndOpen();
+                  })
+                  .catch(finalizeAndOpen);
+              }
             })
             .catch(function () {
               btn.textContent = 'Error — try again';
