@@ -185,34 +185,49 @@
                 setTimeout(removeEmptyClass, 500);
               }
 
-              // Only replace the scrollable items area — leave accordion-custom,
-              // text-component, cart-discount-component etc. in place so their JS
-              // initialization (and CSS) stays intact.
+              // Fetch the page after cart add — server renders full cart state.
+              // Replace the entire cart-drawer inner content so all custom elements
+              // (accordion-custom, text-component, cart-discount-component) get
+              // fresh connectedCallback calls with correct CSS.
               fetch(window.location.href)
                 .then(function (r) { return r.text(); })
                 .then(function (html) {
                   try {
                     var doc = new DOMParser().parseFromString(html, 'text/html');
 
-                    // 1. Swap only the cart items scroll area
-                    var newScroll = doc.querySelector('cart-items-component scroll-hint');
-                    var curScroll = document.querySelector('cart-items-component scroll-hint');
-                    if (newScroll && curScroll) {
-                      curScroll.innerHTML = newScroll.innerHTML;
-                    } else {
-                      // fallback: swap whole component if no scroll-hint found
-                      var newComp = doc.querySelector('cart-items-component');
-                      if (newComp && cartComp) cartComp.replaceWith(newComp);
+                    // Strategy: replace the entire cart-drawer element so every
+                    // child custom element initialises fresh (no init-guard bypass needed).
+                    var selectors = [
+                      'cart-drawer',
+                      '[id*="CartDrawer"]',
+                      '[id*="cart-drawer"]',
+                      'aside[class*="cart-drawer"]',
+                      'div[class*="cart-drawer"]:not([class*="header"]):not([class*="item"])',
+                    ];
+                    var newDrawer, curDrawer;
+                    for (var i = 0; i < selectors.length; i++) {
+                      newDrawer = doc.querySelector(selectors[i]);
+                      curDrawer = document.querySelector(selectors[i]);
+                      if (newDrawer && curDrawer) break;
                     }
 
-                    // 2. Replace cart-drawer__summary with fresh node from the server.
-                    // Using replaceWith(newNode) — not re-inserting the same node —
-                    // so accordion-custom / text-component / cart-discount-component
-                    // all get fresh connectedCallback calls and initialise correctly.
-                    var newSummary = doc.querySelector('.cart-drawer__summary');
-                    var curSummary = document.querySelector('.cart-drawer__summary');
-                    if (newSummary && curSummary) {
-                      curSummary.replaceWith(newSummary);
+                    if (newDrawer && curDrawer) {
+                      // Strip empty-state class from the incoming node before inserting
+                      newDrawer.classList.remove('cart-drawer--empty', 'cart--empty', 'is-empty');
+                      curDrawer.replaceWith(newDrawer);
+                    } else {
+                      // Fallback: swap items + summary individually
+                      var newScroll = doc.querySelector('cart-items-component scroll-hint');
+                      var curScroll = document.querySelector('cart-items-component scroll-hint');
+                      if (newScroll && curScroll) {
+                        curScroll.innerHTML = newScroll.innerHTML;
+                      } else {
+                        var newComp = doc.querySelector('cart-items-component');
+                        if (newComp && cartComp) cartComp.replaceWith(newComp);
+                      }
+                      var newSummary = doc.querySelector('.cart-drawer__summary');
+                      var curSummary = document.querySelector('.cart-drawer__summary');
+                      if (newSummary && curSummary) curSummary.replaceWith(newSummary);
                     }
                   } catch (e) {}
                   openAfter();
