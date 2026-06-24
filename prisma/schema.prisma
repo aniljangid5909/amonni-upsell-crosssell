@@ -46,8 +46,6 @@ model Funnel {
   minCartValue      Float    @default(0)
   skipSubscribed    Boolean  @default(true)
   priority          Int      @default(0)
-  displayStyle      String   @default("carousel")
-  widgetTitle       String   @default("")
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   impressions       FunnelEvent[]

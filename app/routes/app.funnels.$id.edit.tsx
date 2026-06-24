@@ -100,7 +100,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   await prisma.funnel.update({
     where: { id: id as string, shop: session.shop },
-    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId, widgetTitle, displayStyle },
+    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId },
   });
 
   return redirect(`/app/funnels${qs}`);

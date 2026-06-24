@@ -85,8 +85,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       discountValue,
       minCartValue,
       skipSubscribed,
-      widgetTitle,
-      displayStyle,
       status: "active",
     },
   });
