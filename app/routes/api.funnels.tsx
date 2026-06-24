@@ -40,10 +40,34 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (!matched.length) return json({ funnels: [] }, { headers: CORS });
 
+  // Fetch real product titles from Shopify Admin API using the stored offline token
+  const offerProductIds = [...new Set(matched.map((f) => f.offerProductId).filter(Boolean))];
+  const productTitles: Record<string, string> = {};
+
+  try {
+    const session = await prisma.session.findFirst({
+      where: { shop, isOnline: false },
+      select: { accessToken: true },
+    });
+
+    if (session?.accessToken && offerProductIds.length > 0) {
+      const res = await fetch(
+        `https://${shop}/admin/api/2024-01/products.json?ids=${offerProductIds.join(",")}&fields=id,title&limit=50`,
+        { headers: { "X-Shopify-Access-Token": session.accessToken } }
+      );
+      if (res.ok) {
+        const data = await res.json();
+        (data.products || []).forEach((p: { id: number; title: string }) => {
+          productTitles[String(p.id)] = p.title;
+        });
+      }
+    }
+  } catch (_) {}
+
   const result = matched.slice(0, 6).map((f) => ({
     id: f.id,
     offerType: f.offerType,
-    offerTitle: f.name,
+    offerTitle: productTitles[f.offerProductId] || f.name,
     offerProductId: f.offerProductId,
     offerImageUrl: f.offerImageUrl,
     offerVariantId: f.offerVariantId,
