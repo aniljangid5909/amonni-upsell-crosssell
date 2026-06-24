@@ -271,24 +271,29 @@
       syncWidgetVisibility();
 
       // Re-show widget when offer is removed from cart.
-      // Intercept fetch calls to cart mutation endpoints — Horizon calls
-      // /cart/change.js or /cart/update.js when removing items. After any
-      // such call completes we re-check whether the offer is still in cart.
+      // 1) Intercept fetch — fires instantly when Horizon calls /cart/change.js or /cart/update.js
       (function () {
         var _origFetch = window.fetch;
         window.fetch = function (input, init) {
           var url = typeof input === 'string' ? input : (input && input.url) || '';
           var promise = _origFetch.apply(this, arguments);
-          if (/\/cart\/(change|update)\.js/.test(url)) {
+          if (/\/cart\//.test(url) && !/\/cart\.js/.test(url) && !/api\//.test(url)) {
             promise.then(function () {
               if (!window._amoniProductUpdating) {
-                setTimeout(syncWidgetVisibility, 300);
+                setTimeout(syncWidgetVisibility, 400);
               }
             }).catch(function () {});
           }
           return promise;
         };
       })();
+
+      // 2) Poll every 3s — guaranteed fallback regardless of Horizon's internals
+      setInterval(function () {
+        if (!window._amoniProductUpdating) {
+          syncWidgetVisibility();
+        }
+      }, 3000);
 
       fetch(APP_URL + '/api/events', {
         method: 'POST',
