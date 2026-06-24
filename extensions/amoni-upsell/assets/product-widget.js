@@ -164,6 +164,8 @@
             .then(function (addData) {
               btn.textContent = '✓ Added!';
               btn.style.background = '#0c8a4f';
+              // Hide the widget — offer accepted, no need to show it again
+              setTimeout(function () { el.style.display = 'none'; }, 800);
 
               fetch(APP_URL + '/api/events', {
                 method: 'POST',
@@ -253,6 +255,14 @@
       }
 
       el.style.display = 'block';
+
+      // Hide widget if the offer variant is already in the cart
+      fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
+        var variantIds = (cart.items || []).map(function (i) { return String(i.variant_id); });
+        if (variantIds.indexOf(String(funnel.offerVariantId)) !== -1) {
+          el.style.display = 'none';
+        }
+      }).catch(function () {});
 
       fetch(APP_URL + '/api/events', {
         method: 'POST',
