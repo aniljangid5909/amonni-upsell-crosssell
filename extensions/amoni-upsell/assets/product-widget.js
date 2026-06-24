@@ -270,36 +270,25 @@
       // Hide widget if the offer variant is already in the cart
       syncWidgetVisibility();
 
-      // Re-show widget if user removes offer from cart drawer
-      // Strategy 1: listen to Horizon/theme cart update events
-      var cartEventNames = ['cart:updated', 'cart:change', 'sections:change', 'cart-drawer:updated', 'cartDrawer:updated'];
-      cartEventNames.forEach(function (evtName) {
-        document.addEventListener(evtName, function () {
-          if (window._amoniProductUpdating) return;
-          syncWidgetVisibility();
-        });
-      });
-
-      // Strategy 2: watch cart badge text changes as a proxy for any cart mutation
-      function observeCartBadge() {
-        var badge = document.querySelector('cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount, .cart-item-count');
-        if (!badge) return;
-        var badgeWatcher = new MutationObserver(function () {
-          if (window._amoniProductUpdating) return;
-          syncWidgetVisibility();
-        });
-        badgeWatcher.observe(badge, { childList: true, characterData: true, subtree: true });
-      }
-      observeCartBadge();
-
-      // Strategy 3: poll every 4s as fallback (only while cart drawer appears open)
-      setInterval(function () {
-        if (window._amoniProductUpdating) return;
-        var drawer = document.querySelector('cart-drawer');
-        if (drawer && drawer.hasAttribute('open')) {
-          syncWidgetVisibility();
-        }
-      }, 4000);
+      // Re-show widget when offer is removed from cart.
+      // Intercept fetch calls to cart mutation endpoints — Horizon calls
+      // /cart/change.js or /cart/update.js when removing items. After any
+      // such call completes we re-check whether the offer is still in cart.
+      (function () {
+        var _origFetch = window.fetch;
+        window.fetch = function (input, init) {
+          var url = typeof input === 'string' ? input : (input && input.url) || '';
+          var promise = _origFetch.apply(this, arguments);
+          if (/\/cart\/(change|update)\.js/.test(url)) {
+            promise.then(function () {
+              if (!window._amoniProductUpdating) {
+                setTimeout(syncWidgetVisibility, 300);
+              }
+            }).catch(function () {});
+          }
+          return promise;
+        };
+      })();
 
       fetch(APP_URL + '/api/events', {
         method: 'POST',
