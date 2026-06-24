@@ -76,6 +76,8 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const offerImageUrl = (formData.get("offerImageUrl") as string) || "";
   const offerVariantId = (formData.get("offerVariantId") as string) || "";
   const offerPrice = parseFloat((formData.get("offerPrice") as string) || "0");
+  const widgetTitle = (formData.get("widgetTitle") as string) || "";
+  const displayStyle = (formData.get("displayStyle") as string) || "carousel";
 
   const triggerProductIds = triggerProductIdsRaw
     ? triggerProductIdsRaw.split(",").map((s) => s.trim()).filter(Boolean)
@@ -98,7 +100,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   await prisma.funnel.update({
     where: { id: id as string, shop: session.shop },
-    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId },
+    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId, widgetTitle, displayStyle },
   });
 
   return redirect(`/app/funnels${qs}`);
@@ -147,6 +149,8 @@ export default function EditFunnelPage() {
   const [name, setName] = useState(funnel.name);
   const [placement, setPlacement] = useState(funnel.placement);
   const [offerType, setOfferType] = useState(funnel.offerType);
+  const [widgetTitle, setWidgetTitle] = useState(funnel.widgetTitle || "");
+  const [displayStyle, setDisplayStyle] = useState(funnel.displayStyle || "carousel");
 
   const [triggerProducts, setTriggerProducts] = useState<PickedProduct[]>(
     funnel.triggerProductIds.map((id) => ({ id: numericToGid(id), title: `Product ${id}`, imageUrl: "" }))
@@ -222,6 +226,25 @@ export default function EditFunnelPage() {
                   <TextField label="Funnel name" name="name" value={name} onChange={setName} placeholder="e.g. Serum → SPF cross-sell" autoComplete="off" requiredIndicator />
                   <Select label="Placement" name="placement" options={placementOptions} value={placement} onChange={setPlacement} helpText="Where this offer appears in the customer journey" />
                   <Select label="Offer type" name="offerType" options={offerTypeOptions} value={offerType} onChange={setOfferType} />
+                  <TextField
+                    label="Widget title"
+                    name="widgetTitle"
+                    value={widgetTitle}
+                    onChange={setWidgetTitle}
+                    placeholder="e.g. You might also like"
+                    helpText="Custom heading shown in the widget. Leave blank to use the default."
+                    autoComplete="off"
+                  />
+                  <Select
+                    label="Display style"
+                    name="displayStyle"
+                    options={[
+                      { label: "Carousel", value: "carousel" },
+                      { label: "Grid", value: "grid" },
+                    ]}
+                    value={displayStyle}
+                    onChange={setDisplayStyle}
+                  />
                 </FormLayout>
               </BlockStack>
             </Card>

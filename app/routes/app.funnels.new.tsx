@@ -59,6 +59,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const offerImageUrl = (formData.get("offerImageUrl") as string) || "";
   const offerVariantId = (formData.get("offerVariantId") as string) || "";
   const offerPrice = parseFloat((formData.get("offerPrice") as string) || "0");
+  const widgetTitle = (formData.get("widgetTitle") as string) || "";
+  const displayStyle = (formData.get("displayStyle") as string) || "carousel";
 
   if (!name || !placement || !offerType) {
     return redirect(`/app/funnels/new${qsStr}`);
@@ -83,6 +85,8 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       discountValue,
       minCartValue,
       skipSubscribed,
+      widgetTitle,
+      displayStyle,
       status: "active",
     },
   });
@@ -142,6 +146,8 @@ export default function NewFunnelPage() {
   const [name, setName] = useState("");
   const [placement, setPlacement] = useState("cart");
   const [offerType, setOfferType] = useState("cross-sell");
+  const [widgetTitle, setWidgetTitle] = useState("");
+  const [displayStyle, setDisplayStyle] = useState("carousel");
   const [triggerProducts, setTriggerProducts] = useState<PickedProduct[]>([]);
   const [offerProduct, setOfferProduct] = useState<PickedProduct | null>(null);
 
@@ -232,6 +238,25 @@ export default function NewFunnelPage() {
                     options={offerTypeOptions}
                     value={offerType}
                     onChange={setOfferType}
+                  />
+                  <TextField
+                    label="Widget title"
+                    name="widgetTitle"
+                    value={widgetTitle}
+                    onChange={setWidgetTitle}
+                    placeholder="e.g. You might also like"
+                    helpText="Custom heading shown in the widget. Leave blank to use the default."
+                    autoComplete="off"
+                  />
+                  <Select
+                    label="Display style"
+                    name="displayStyle"
+                    options={[
+                      { label: "Carousel", value: "carousel" },
+                      { label: "Grid", value: "grid" },
+                    ]}
+                    value={displayStyle}
+                    onChange={setDisplayStyle}
                   />
                 </FormLayout>
               </BlockStack>

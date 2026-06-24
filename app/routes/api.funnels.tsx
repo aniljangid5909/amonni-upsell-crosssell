@@ -40,7 +40,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (!matched.length) return json({ funnels: [] }, { headers: CORS });
 
-  const result = matched.slice(0, 3).map((f) => ({
+  const result = matched.slice(0, 6).map((f) => ({
     id: f.id,
     offerType: f.offerType,
     offerTitle: f.name,
@@ -51,6 +51,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     discountType: f.discountType,
     discountValue: f.discountValue,
     discountCode: f.discountCode,
+    displayStyle: f.displayStyle,
+    widgetTitle: f.widgetTitle,
   }));
 
   return json({ funnels: result }, { headers: CORS });
