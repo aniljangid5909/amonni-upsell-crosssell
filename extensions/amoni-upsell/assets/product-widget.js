@@ -271,14 +271,35 @@
       syncWidgetVisibility();
 
       // Re-show widget if user removes offer from cart drawer
-      var cartItemsEl = document.querySelector('cart-items-component');
-      if (cartItemsEl) {
-        var cartWatcher = new MutationObserver(function () {
+      // Strategy 1: listen to Horizon/theme cart update events
+      var cartEventNames = ['cart:updated', 'cart:change', 'sections:change', 'cart-drawer:updated', 'cartDrawer:updated'];
+      cartEventNames.forEach(function (evtName) {
+        document.addEventListener(evtName, function () {
           if (window._amoniProductUpdating) return;
           syncWidgetVisibility();
         });
-        cartWatcher.observe(cartItemsEl, { childList: true, subtree: true });
+      });
+
+      // Strategy 2: watch cart badge text changes as a proxy for any cart mutation
+      function observeCartBadge() {
+        var badge = document.querySelector('cart-count, [data-cart-count], .cart-count, #cart-count, .CartCount, .cart-item-count');
+        if (!badge) return;
+        var badgeWatcher = new MutationObserver(function () {
+          if (window._amoniProductUpdating) return;
+          syncWidgetVisibility();
+        });
+        badgeWatcher.observe(badge, { childList: true, characterData: true, subtree: true });
       }
+      observeCartBadge();
+
+      // Strategy 3: poll every 4s as fallback (only while cart drawer appears open)
+      setInterval(function () {
+        if (window._amoniProductUpdating) return;
+        var drawer = document.querySelector('cart-drawer');
+        if (drawer && drawer.hasAttribute('open')) {
+          syncWidgetVisibility();
+        }
+      }, 4000);
 
       fetch(APP_URL + '/api/events', {
         method: 'POST',
