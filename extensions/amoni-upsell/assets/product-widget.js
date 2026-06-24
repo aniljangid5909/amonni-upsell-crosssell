@@ -256,13 +256,29 @@
 
       el.style.display = 'block';
 
+      function syncWidgetVisibility() {
+        fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
+          var variantIds = (cart.items || []).map(function (i) { return String(i.variant_id); });
+          if (variantIds.indexOf(String(funnel.offerVariantId)) !== -1) {
+            el.style.display = 'none';
+          } else {
+            el.style.display = 'block';
+          }
+        }).catch(function () {});
+      }
+
       // Hide widget if the offer variant is already in the cart
-      fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
-        var variantIds = (cart.items || []).map(function (i) { return String(i.variant_id); });
-        if (variantIds.indexOf(String(funnel.offerVariantId)) !== -1) {
-          el.style.display = 'none';
-        }
-      }).catch(function () {});
+      syncWidgetVisibility();
+
+      // Re-show widget if user removes offer from cart drawer
+      var cartItemsEl = document.querySelector('cart-items-component');
+      if (cartItemsEl) {
+        var cartWatcher = new MutationObserver(function () {
+          if (window._amoniProductUpdating) return;
+          syncWidgetVisibility();
+        });
+        cartWatcher.observe(cartItemsEl, { childList: true, subtree: true });
+      }
 
       fetch(APP_URL + '/api/events', {
         method: 'POST',
