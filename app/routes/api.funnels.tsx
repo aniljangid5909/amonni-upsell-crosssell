@@ -51,8 +51,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     discountType: f.discountType,
     discountValue: f.discountValue,
     discountCode: f.discountCode,
-    displayStyle: "carousel",
-    widgetTitle: "",
+    displayStyle: f.displayStyle,
+    widgetTitle: f.widgetTitle,
   }));
 
   return json({ funnels: result }, { headers: CORS });
