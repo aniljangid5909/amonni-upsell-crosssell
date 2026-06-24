@@ -79,7 +79,6 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       offerType,
       triggerProductIds,
       offerProductId: offerProductId || "",
-      offerTitle,
       offerImageUrl,
       offerVariantId,
       offerPrice,
