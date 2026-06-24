@@ -73,6 +73,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
   const discountValue = parseFloat((formData.get("discountValue") as string) || "0");
   const minCartValue = parseFloat((formData.get("minCartValue") as string) || "0");
   const skipSubscribed = formData.get("skipSubscribed") === "on";
+  const offerTitle = (formData.get("offerTitle") as string) || "";
   const offerImageUrl = (formData.get("offerImageUrl") as string) || "";
   const offerVariantId = (formData.get("offerVariantId") as string) || "";
   const offerPrice = parseFloat((formData.get("offerPrice") as string) || "0");
@@ -100,7 +101,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   await prisma.funnel.update({
     where: { id: id as string, shop: session.shop },
-    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId, widgetTitle, displayStyle },
+    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerTitle, offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId, widgetTitle, displayStyle },
   });
 
   return redirect(`/app/funnels${qs}`);
@@ -157,7 +158,7 @@ export default function EditFunnelPage() {
   );
   const [offerProduct, setOfferProduct] = useState<PickedProduct | null>(
     funnel.offerProductId
-      ? { id: numericToGid(funnel.offerProductId), title: `Product ${funnel.offerProductId}`, imageUrl: funnel.offerImageUrl, variantId: funnel.offerVariantId, price: String(funnel.offerPrice) }
+      ? { id: numericToGid(funnel.offerProductId), title: funnel.offerTitle || funnel.name, imageUrl: funnel.offerImageUrl, variantId: funnel.offerVariantId, price: String(funnel.offerPrice) }
       : null
   );
 
@@ -213,6 +214,7 @@ export default function EditFunnelPage() {
       <Form method="post">
         <input type="hidden" name="triggerProductIds" value={triggerProductIds} />
         <input type="hidden" name="offerProductId" value={offerProductId} />
+        <input type="hidden" name="offerTitle" value={offerProduct?.title || ""} />
         <input type="hidden" name="offerImageUrl" value={offerProduct?.imageUrl || ""} />
         <input type="hidden" name="offerVariantId" value={offerProduct?.variantId || ""} />
         <input type="hidden" name="offerPrice" value={offerProduct?.price || "0"} />

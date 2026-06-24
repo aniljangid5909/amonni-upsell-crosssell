@@ -56,6 +56,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     (formData.get("minCartValue") as string) || "0"
   );
   const skipSubscribed = formData.get("skipSubscribed") === "on";
+  const offerTitle = (formData.get("offerTitle") as string) || "";
   const offerImageUrl = (formData.get("offerImageUrl") as string) || "";
   const offerVariantId = (formData.get("offerVariantId") as string) || "";
   const offerPrice = parseFloat((formData.get("offerPrice") as string) || "0");
@@ -78,6 +79,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       offerType,
       triggerProductIds,
       offerProductId: offerProductId || "",
+      offerTitle,
       offerImageUrl,
       offerVariantId,
       offerPrice,
@@ -204,6 +206,7 @@ export default function NewFunnelPage() {
         {/* Hidden fields carrying the resolved IDs */}
         <input type="hidden" name="triggerProductIds" value={triggerProductIds} />
         <input type="hidden" name="offerProductId" value={offerProductId} />
+        <input type="hidden" name="offerTitle" value={offerProduct?.title || ""} />
         <input type="hidden" name="offerImageUrl" value={offerProduct?.imageUrl || ""} />
         <input type="hidden" name="offerVariantId" value={offerProduct?.variantId || ""} />
         <input type="hidden" name="offerPrice" value={offerProduct?.price || "0"} />

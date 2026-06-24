@@ -277,6 +277,7 @@
         // Add bundle button
         var bundleBtn = document.createElement('button');
         bundleBtn.setAttribute('data-amoni-bundle', '1');
+        bundleBtn.setAttribute('data-offer-variant', bundleFunnel.offerVariantId || '');
         bundleBtn.style.cssText = 'width:100%;padding:12px 0;border-radius:10px;border:none;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;cursor:not-allowed;font-family:inherit;opacity:0.5;';
         bundleBtn.disabled = true; // enabled by syncWidgetVisibility when trigger in cart
         bundleBtn.textContent = 'Add bundle to cart';
@@ -353,6 +354,7 @@
 
           var addBtn = document.createElement('button');
           addBtn.setAttribute('data-amoni-add', '1');
+          addBtn.setAttribute('data-offer-variant', funnel.offerVariantId || '');
           addBtn.style.cssText = 'padding:7px 16px;border-radius:20px;border:none;background:#1a1a1a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;opacity:0.4;';
           addBtn.disabled = true; // disabled until syncWidgetVisibility confirms trigger in cart
           addBtn.textContent = 'Add';
@@ -447,7 +449,18 @@
 
           // Enable/disable all Add buttons based on trigger being in cart
           el.querySelectorAll('button[data-amoni-add]').forEach(function (btn) {
-            if (btn._amoniAdded) return; // already added, leave green
+            var offerVariantId = btn.getAttribute('data-offer-variant');
+            var offerInCart = offerVariantId && variantIds.indexOf(String(offerVariantId)) !== -1;
+
+            // Reset "✓ Added" state if offer was removed from cart
+            if (btn._amoniAdded && !offerInCart) {
+              btn._amoniAdded = false;
+              btn.textContent = 'Add';
+              btn.style.background = '#1a1a1a';
+            }
+
+            if (btn._amoniAdded) return; // keep green state
+
             if (triggerInCart) {
               btn.disabled = false;
               btn.style.opacity = '1';
@@ -463,17 +476,29 @@
 
           // For bundle: also toggle bundle button
           var bundleBtn = el.querySelector('button[data-amoni-bundle]');
-          if (bundleBtn && !bundleBtn._amoniAdded) {
-            if (triggerInCart) {
-              bundleBtn.disabled = false;
-              bundleBtn.style.opacity = '1';
-              bundleBtn.style.cursor = 'pointer';
-              bundleBtn.title = '';
-            } else {
-              bundleBtn.disabled = true;
-              bundleBtn.style.opacity = '0.5';
-              bundleBtn.style.cursor = 'not-allowed';
-              bundleBtn.title = 'Add the main product to cart first';
+          if (bundleBtn) {
+            var bundleOfferVariant = bundleBtn.getAttribute('data-offer-variant');
+            var bundleOfferInCart = bundleOfferVariant && variantIds.indexOf(String(bundleOfferVariant)) !== -1;
+
+            // Reset if removed from cart
+            if (bundleBtn._amoniAdded && !bundleOfferInCart) {
+              bundleBtn._amoniAdded = false;
+              bundleBtn.textContent = 'Add bundle to cart';
+              bundleBtn.style.background = '#1a1a1a';
+            }
+
+            if (!bundleBtn._amoniAdded) {
+              if (triggerInCart) {
+                bundleBtn.disabled = false;
+                bundleBtn.style.opacity = '1';
+                bundleBtn.style.cursor = 'pointer';
+                bundleBtn.title = '';
+              } else {
+                bundleBtn.disabled = true;
+                bundleBtn.style.opacity = '0.5';
+                bundleBtn.style.cursor = 'not-allowed';
+                bundleBtn.title = 'Add the main product to cart first';
+              }
             }
           }
 
