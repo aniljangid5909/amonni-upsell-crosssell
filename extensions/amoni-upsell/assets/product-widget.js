@@ -276,7 +276,9 @@
 
         // Add bundle button
         var bundleBtn = document.createElement('button');
-        bundleBtn.style.cssText = 'width:100%;padding:12px 0;border-radius:10px;border:none;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;';
+        bundleBtn.setAttribute('data-amoni-bundle', '1');
+        bundleBtn.style.cssText = 'width:100%;padding:12px 0;border-radius:10px;border:none;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;cursor:not-allowed;font-family:inherit;opacity:0.5;';
+        bundleBtn.disabled = true; // enabled by syncWidgetVisibility when trigger in cart
         bundleBtn.textContent = 'Add bundle to cart';
         bundleBtn.addEventListener('click', function () {
           var variantsToAdd = [];
@@ -288,8 +290,11 @@
           bundleBtn.disabled = true;
 
           addToCart(variantsToAdd, bundleFunnel.discountCode, function () {
+            bundleBtn._amoniAdded = true;
             bundleBtn.textContent = '✓ Added!';
             bundleBtn.style.background = '#0c8a4f';
+            bundleBtn.style.opacity = '1';
+            bundleBtn.style.cursor = 'default';
             setTimeout(function () { el.style.display = 'none'; }, 800);
             fetch(APP_URL + '/api/events', {
               method: 'POST',
@@ -347,7 +352,9 @@
           card.appendChild(priceWrap);
 
           var addBtn = document.createElement('button');
-          addBtn.style.cssText = 'padding:7px 16px;border-radius:20px;border:none;background:#1a1a1a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;';
+          addBtn.setAttribute('data-amoni-add', '1');
+          addBtn.style.cssText = 'padding:7px 16px;border-radius:20px;border:none;background:#1a1a1a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;opacity:0.4;';
+          addBtn.disabled = true; // disabled until syncWidgetVisibility confirms trigger in cart
           addBtn.textContent = 'Add';
           addBtn.addEventListener('click', function () {
             if (!funnel.offerVariantId) return;
@@ -355,8 +362,11 @@
             addBtn.disabled = true;
 
             addToCart([funnel.offerVariantId], funnel.discountCode, function () {
+              addBtn._amoniAdded = true;
               addBtn.textContent = '✓ Added';
               addBtn.style.background = '#0c8a4f';
+              addBtn.style.opacity = '1';
+              addBtn.style.cursor = 'default';
               fetch(APP_URL + '/api/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -423,11 +433,51 @@
       el.appendChild(container);
       el.style.display = 'block';
 
-      // ── Sync visibility based on whether offer is in cart ──
+      // ── Sync visibility & button state based on cart contents ──
       function syncWidgetVisibility() {
         fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
-          var variantIds = (cart.items || []).map(function (i) { return String(i.variant_id); });
-          // For single-card scenarios (bundle or single funnel), hide if offer in cart
+          var items = cart.items || [];
+          var variantIds = items.map(function (i) { return String(i.variant_id); });
+          var cartProductIds = items.map(function (i) { return String(i.product_id); });
+
+          // Is the TRIGGER product in the cart?
+          var triggerInCart = triggerVariantId
+            ? variantIds.indexOf(String(triggerVariantId)) !== -1
+            : cartProductIds.indexOf(String(productId)) !== -1;
+
+          // Enable/disable all Add buttons based on trigger being in cart
+          el.querySelectorAll('button[data-amoni-add]').forEach(function (btn) {
+            if (btn._amoniAdded) return; // already added, leave green
+            if (triggerInCart) {
+              btn.disabled = false;
+              btn.style.opacity = '1';
+              btn.style.cursor = 'pointer';
+              btn.title = '';
+            } else {
+              btn.disabled = true;
+              btn.style.opacity = '0.4';
+              btn.style.cursor = 'not-allowed';
+              btn.title = 'Add the main product to cart first';
+            }
+          });
+
+          // For bundle: also toggle bundle button
+          var bundleBtn = el.querySelector('button[data-amoni-bundle]');
+          if (bundleBtn && !bundleBtn._amoniAdded) {
+            if (triggerInCart) {
+              bundleBtn.disabled = false;
+              bundleBtn.style.opacity = '1';
+              bundleBtn.style.cursor = 'pointer';
+              bundleBtn.title = '';
+            } else {
+              bundleBtn.disabled = true;
+              bundleBtn.style.opacity = '0.5';
+              bundleBtn.style.cursor = 'not-allowed';
+              bundleBtn.title = 'Add the main product to cart first';
+            }
+          }
+
+          // Hide widget entirely if the offer variant is already in cart (single-card only)
           if (funnels.length === 1 && variantIds.indexOf(String(firstFunnel.offerVariantId)) !== -1) {
             el.style.display = 'none';
           } else {
