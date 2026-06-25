@@ -138,7 +138,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 // ── Action — create or cancel subscription ───────────────────────────────────
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin, billing, session } = await authenticate.admin(request);
   const url = new URL(request.url);
   const host = url.searchParams.get("host") ?? "";
   const shop = session.shop;
@@ -165,7 +165,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
   }
 
-  // Create subscription
+  // Create subscription using the adapter's built-in billing API
   const planId = formData.get("planId") as string;
   const interval = formData.get("interval") as string;
 
@@ -174,66 +174,20 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return redirect(`/app/pricing?shop=${shop}&host=${host}`);
   }
 
-  const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-  const gqlInterval = interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS";
-  const planName = `Amoni Upsell ${plan.name} (${interval === "yearly" ? "Yearly" : "Monthly"})`;
-
-  // Use the request origin (tunnel URL in dev, app URL in prod) — avoids relying on env var
-  const origin = new URL(request.url).origin;
-  const returnUrl = `${origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
+  const planName = `Amoni Upsell ${plan.name} (${interval === "yearly" ? "Yearly" : "Monthly"})` as const;
 
   try {
-    const res = await admin.graphql(`
-      mutation AppSubscriptionCreate($name: String!, $returnUrl: URL!, $lineItems: [AppSubscriptionLineItemInput!]!, $test: Boolean) {
-        appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test) {
-          appSubscription { id status }
-          confirmationUrl
-          userErrors { field message }
-        }
-      }
-    `, {
-      variables: {
-        name: planName,
-        returnUrl,
-        test: IS_TEST,
-        lineItems: [{
-          plan: {
-            appRecurringPricingDetails: {
-              price: { amount: price, currencyCode: "USD" },
-              interval: gqlInterval,
-            },
-          },
-        }],
-      },
-    });
-
-    const body = await res.json();
-    const { confirmationUrl, userErrors } = body?.data?.appSubscriptionCreate || {};
-
-    if (userErrors?.length) {
-      return json({ error: userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null });
-    }
-
-    if (!confirmationUrl) {
-      const rawError = JSON.stringify(body?.errors || body?.data || "No confirmation URL returned");
-      return json({ error: `Shopify error: ${rawError}`, confirmationUrl: null });
-    }
-
-    return json({ confirmationUrl, error: null });
+    // billing.request() redirects to Shopify's billing confirmation page automatically
+    await billing.request({ plan: planName, isTest: IS_TEST, returnObject: false });
+    // If we get here, the redirect was somehow skipped — fall through to home
+    return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
   } catch (err: any) {
-    // Shopify's Remix adapter throws Response objects on auth/billing errors
     if (err instanceof Response) {
-      try {
-        const text = await err.text();
-        let msg = text;
-        try { msg = JSON.stringify(JSON.parse(text), null, 0); } catch (_) {}
-        return json({ error: `Shopify error (${err.status}): ${msg}`, confirmationUrl: null });
-      } catch (_) {
-        return json({ error: `Shopify error (${err.status})`, confirmationUrl: null });
-      }
+      // This is a redirect thrown by billing.request — let Remix/App Bridge handle it
+      throw err;
     }
     const msg = err?.message || String(err);
-    return json({ error: `Request failed: ${msg}`, confirmationUrl: null });
+    return json({ error: `Billing error: ${msg}`, confirmationUrl: null });
   }
 };
 
