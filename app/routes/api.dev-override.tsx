@@ -19,7 +19,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   try {
     await prisma.session.upsert({
       where: { id: `__dev_plan_${shop}` },
-      create: { id: `__dev_plan_${shop}`, shop, state: plan, isOnline: false },
+      create: { id: `__dev_plan_${shop}`, shop, state: plan, isOnline: false, accessToken: "" },
       update: { state: plan },
     });
     return json({ ok: true, plan });
