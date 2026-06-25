@@ -226,8 +226,8 @@ export default function EditFunnelPage() {
                 <Text variant="headingMd" as="h2">Funnel details</Text>
                 <FormLayout>
                   <TextField label="Funnel name" name="name" value={name} onChange={setName} placeholder="e.g. Serum → SPF cross-sell" autoComplete="off" requiredIndicator />
-                  <Select label="Placement" name="placement" options={placementOptions} value={placement} onChange={setPlacement} helpText="Where this offer appears in the customer journey" />
-                  <Select label="Offer type" name="offerType" options={offerTypeOptions} value={offerType} onChange={setOfferType} />
+                  <Select label="Placement" name="placement" options={placementOptions} value={placement} onChange={(v) => { setPlacement(v); setWidgetTitle(''); }} helpText="Where this offer appears in the customer journey" />
+                  <Select label="Offer type" name="offerType" options={offerTypeOptions} value={offerType} onChange={(v) => { setOfferType(v); setWidgetTitle(''); }} />
                   <TextField
                     label="Widget title"
                     name="widgetTitle"

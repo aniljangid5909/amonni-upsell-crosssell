@@ -231,7 +231,7 @@ export default function NewFunnelPage() {
                     name="placement"
                     options={placementOptions}
                     value={placement}
-                    onChange={setPlacement}
+                    onChange={(v) => { setPlacement(v); setWidgetTitle(''); }}
                     helpText="Where this offer appears in the customer journey"
                   />
                   <Select
@@ -239,7 +239,7 @@ export default function NewFunnelPage() {
                     name="offerType"
                     options={offerTypeOptions}
                     value={offerType}
-                    onChange={setOfferType}
+                    onChange={(v) => { setOfferType(v); setWidgetTitle(''); }}
                   />
                   <TextField
                     label="Widget title"
