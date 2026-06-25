@@ -207,20 +207,21 @@ export default function PricingPage() {
       <Layout>
         {/* ── Billing toggle ── */}
         <Layout.Section>
-          <BlockStack align="center" inlineAlign="center" gap="400">
-            <InlineStack gap="300" align="center" blockAlign="center">
+          <div style={{ display: "flex", justifyContent: "center", paddingBottom: "8px" }}>
+            <div style={{ display: "inline-flex", gap: "8px", background: "#f5f5f5", borderRadius: "12px", padding: "4px" }}>
               <button
                 onClick={() => setInterval("monthly")}
                 style={{
-                  padding: "8px 20px",
-                  borderRadius: "8px",
-                  border: "none",
-                  background: interval === "monthly" ? "#1a1a1a" : "#f0f0f0",
+                  padding: "8px 22px",
+                  borderRadius: "9px",
+                  border: interval === "monthly" ? "none" : "1.5px solid #d0d0d0",
+                  background: interval === "monthly" ? "#1a1a1a" : "transparent",
                   color: interval === "monthly" ? "#fff" : "#555",
                   fontWeight: 600,
                   fontSize: "14px",
                   cursor: "pointer",
                   fontFamily: "inherit",
+                  transition: "all 0.15s",
                 }}
               >
                 Monthly
@@ -228,18 +229,19 @@ export default function PricingPage() {
               <button
                 onClick={() => setInterval("yearly")}
                 style={{
-                  padding: "8px 20px",
-                  borderRadius: "8px",
-                  border: "none",
-                  background: interval === "yearly" ? "#1a1a1a" : "#f0f0f0",
+                  padding: "8px 22px",
+                  borderRadius: "9px",
+                  border: interval === "yearly" ? "none" : "1.5px solid #d0d0d0",
+                  background: interval === "yearly" ? "#1a1a1a" : "transparent",
                   color: interval === "yearly" ? "#fff" : "#555",
                   fontWeight: 600,
                   fontSize: "14px",
                   cursor: "pointer",
                   fontFamily: "inherit",
-                  display: "flex",
+                  display: "inline-flex",
                   alignItems: "center",
                   gap: "8px",
+                  transition: "all 0.15s",
                 }}
               >
                 Yearly
@@ -247,13 +249,13 @@ export default function PricingPage() {
                   Save {yearlyDiscount}%
                 </span>
               </button>
-            </InlineStack>
-          </BlockStack>
+            </div>
+          </div>
         </Layout.Section>
 
         {/* ── Plan cards ── */}
         <Layout.Section>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px", marginTop: "8px" }}>
             {PLANS.map((plan) => {
               const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
               const isActive = activePlan === plan.id;
