@@ -279,18 +279,34 @@ export default function NewFunnelPage() {
                   <Select
                     label="Placement"
                     name="placement"
-                    options={allowedPlacementOptions}
+                    options={placementOptions}
                     value={placement}
-                    onChange={(v) => { if (limits.allowedPlacements.includes(v)) { setPlacement(v); setWidgetTitle(''); } }}
+                    onChange={(v) => { setPlacement(v); setWidgetTitle(''); }}
                     helpText="Where this offer appears in the customer journey"
                   />
+                  {!limits.allowedPlacements.includes(placement) && (
+                    <div style={{ marginTop: "-8px", padding: "10px 14px", background: "#fff8e1", border: "1px solid #f5c842", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "13px", color: "#7a5c00" }}>
+                        🔒 <strong>{placementOptions.find(o => o.value === placement)?.label}</strong> is not available on your <strong>{plan}</strong> plan.
+                      </span>
+                      <a href={`/app/pricing${qs}`} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px" }}>Upgrade →</a>
+                    </div>
+                  )}
                   <Select
                     label="Offer type"
                     name="offerType"
-                    options={allowedOfferTypeOptions}
+                    options={offerTypeOptions}
                     value={offerType}
-                    onChange={(v) => { if (limits.allowedOfferTypes.includes(v)) { setOfferType(v); setWidgetTitle(''); } }}
+                    onChange={(v) => { setOfferType(v); setWidgetTitle(''); }}
                   />
+                  {!limits.allowedOfferTypes.includes(offerType) && (
+                    <div style={{ marginTop: "-8px", padding: "10px 14px", background: "#fff8e1", border: "1px solid #f5c842", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "13px", color: "#7a5c00" }}>
+                        🔒 <strong>{offerTypeOptions.find(o => o.value === offerType)?.label?.split(' —')[0]}</strong> offers are not available on your <strong>{plan}</strong> plan.
+                      </span>
+                      <a href={`/app/pricing${qs}`} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px" }}>Upgrade →</a>
+                    </div>
+                  )}
                   <TextField
                     label="Widget title"
                     name="widgetTitle"
@@ -485,7 +501,9 @@ export default function NewFunnelPage() {
             content: "Save funnel",
             submit: true,
             loading: isSubmitting,
-            disabled: !name || !offerProduct,
+            disabled: !name || !offerProduct || blocked
+              || !limits.allowedPlacements.includes(placement)
+              || !limits.allowedOfferTypes.includes(offerType),
           }}
           secondaryActions={[{ content: "Cancel", url: "/app/funnels" }]}
         />

@@ -21,16 +21,18 @@ import {
   Banner,
 } from "@shopify/polaris";
 import { authenticate, prisma } from "../shopify.server";
+import { getCurrentPlan, PLAN_LIMITS } from "../plan.server";
 import { createFunnelDiscount, deleteFunnelDiscount } from "../discount.server";
 
 export const loader = async ({ request, params }: LoaderFunctionArgs) => {
-  const { session } = await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const { id } = params;
   const url = new URL(request.url);
 
-  const funnel = await prisma.funnel.findFirst({
-    where: { id: id as string, shop: session.shop },
-  });
+  const [funnel, plan] = await Promise.all([
+    prisma.funnel.findFirst({ where: { id: id as string, shop: session.shop } }),
+    getCurrentPlan(admin, session.shop),
+  ]);
 
   if (!funnel) throw new Response("Not found", { status: 404 });
 
@@ -38,6 +40,8 @@ export const loader = async ({ request, params }: LoaderFunctionArgs) => {
     funnel,
     host: url.searchParams.get("host") ?? "",
     shop: url.searchParams.get("shop") ?? session.shop,
+    plan,
+    limits: PLAN_LIMITS[plan],
   });
 };
 
@@ -138,7 +142,7 @@ function numericToGid(id: string) {
 }
 
 export default function EditFunnelPage() {
-  const { funnel, shop, host } = useLoaderData<typeof loader>();
+  const { funnel, shop, host, plan, limits } = useLoaderData<typeof loader>();
   const qs = buildQs(shop, host);
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -227,7 +231,23 @@ export default function EditFunnelPage() {
                 <FormLayout>
                   <TextField label="Funnel name" name="name" value={name} onChange={setName} placeholder="e.g. Serum → SPF cross-sell" autoComplete="off" requiredIndicator />
                   <Select label="Placement" name="placement" options={placementOptions} value={placement} onChange={(v) => { setPlacement(v); setWidgetTitle(''); }} helpText="Where this offer appears in the customer journey" />
+                  {!limits.allowedPlacements.includes(placement) && (
+                    <div style={{ marginTop: "-8px", padding: "10px 14px", background: "#fff8e1", border: "1px solid #f5c842", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "13px", color: "#7a5c00" }}>
+                        🔒 <strong>{placementOptions.find(o => o.value === placement)?.label}</strong> is not available on your <strong>{plan}</strong> plan.
+                      </span>
+                      <a href={`/app/pricing${qs}`} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px" }}>Upgrade →</a>
+                    </div>
+                  )}
                   <Select label="Offer type" name="offerType" options={offerTypeOptions} value={offerType} onChange={(v) => { setOfferType(v); setWidgetTitle(''); }} />
+                  {!limits.allowedOfferTypes.includes(offerType) && (
+                    <div style={{ marginTop: "-8px", padding: "10px 14px", background: "#fff8e1", border: "1px solid #f5c842", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "13px", color: "#7a5c00" }}>
+                        🔒 <strong>{offerTypeOptions.find(o => o.value === offerType)?.label?.split(' —')[0]}</strong> offers are not available on your <strong>{plan}</strong> plan.
+                      </span>
+                      <a href={`/app/pricing${qs}`} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px" }}>Upgrade →</a>
+                    </div>
+                  )}
                   <TextField
                     label="Widget title"
                     name="widgetTitle"
@@ -348,7 +368,12 @@ export default function EditFunnelPage() {
         </Layout>
 
         <PageActions
-          primaryAction={{ content: "Save funnel", submit: true, loading: isSubmitting }}
+          primaryAction={{
+            content: "Save funnel",
+            submit: true,
+            loading: isSubmitting,
+            disabled: !limits.allowedPlacements.includes(placement) || !limits.allowedOfferTypes.includes(offerType),
+          }}
           secondaryActions={[
             { content: "Cancel", url: `/app/funnels${qs}` },
             { content: "Delete funnel", destructive: true, onAction: handleDelete },
