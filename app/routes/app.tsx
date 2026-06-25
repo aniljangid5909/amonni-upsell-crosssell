@@ -51,7 +51,8 @@ export default function AppLayout() {
   return (
     <AppProvider i18n={enTranslations}>
       <ui-nav-menu>
-        <a href={`/app/funnels${qs}`} rel="home">Funnels</a>
+        <a href={`/app/dashboard${qs}`} rel="home">Dashboard</a>
+        <a href={`/app/funnels${qs}`}>Funnels</a>
         <a href={`/app/funnels/new${qs}`}>Create funnel</a>
         <a href={`/app/pricing${qs}`}>Pricing</a>
         <a href={`/app/storefront-preview${qs}`}>Storefront preview</a>

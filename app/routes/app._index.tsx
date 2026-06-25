@@ -3,7 +3,7 @@ import { redirect } from "@remix-run/node";
 
 export const loader = ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
-  url.pathname = "/app/funnels";
+  url.pathname = "/app/dashboard";
   return redirect(url.toString());
 };
 
