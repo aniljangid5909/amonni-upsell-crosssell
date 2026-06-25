@@ -17,7 +17,7 @@ export const PLAN_LIMITS: Record<PlanId, {
     maxFunnels: 1,
     maxImpressionsPerMonth: 100,
     allowedPlacements: ["product"],
-    allowedOfferTypes: ["cross-sell"],
+    allowedOfferTypes: ["cross-sell", "upsell"],
     cartDrawer: false,
     discountCodes: false,
     displayStyles: false,

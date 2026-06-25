@@ -77,6 +77,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const offerType = formData.get("offerType") as string;
   const triggerProductIdsRaw = formData.get("triggerProductIds") as string;
   const offerProductId = formData.get("offerProductId") as string;
+  const offerProductIdsRaw = formData.get("offerProductIds") as string;
   const discountType = formData.get("discountType") as string;
   const discountValue = parseFloat(
     (formData.get("discountValue") as string) || "0"
@@ -99,6 +100,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const triggerProductIds = triggerProductIdsRaw
     ? triggerProductIdsRaw.split(",").map((s) => s.trim()).filter(Boolean)
     : [];
+  const offerProductIds = offerProductIdsRaw
+    ? offerProductIdsRaw.split(",").map((s) => s.trim()).filter(Boolean)
+    : offerProductId ? [offerProductId] : [];
 
   const funnel = await prisma.funnel.create({
     data: {
@@ -108,6 +112,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       offerType,
       triggerProductIds,
       offerProductId: offerProductId || "",
+      offerProductIds,
       offerImageUrl,
       offerVariantId,
       offerPrice,
@@ -184,7 +189,7 @@ export default function NewFunnelPage() {
   const [widgetTitle, setWidgetTitle] = useState("");
   const [displayStyle, setDisplayStyle] = useState("carousel");
   const [triggerProducts, setTriggerProducts] = useState<PickedProduct[]>([]);
-  const [offerProduct, setOfferProduct] = useState<PickedProduct | null>(null);
+  const [offerProducts, setOfferProducts] = useState<PickedProduct[]>([]);
 
   const openTriggerPicker = useCallback(async () => {
     const selected = await (window as any).shopify.resourcePicker({
@@ -206,29 +211,37 @@ export default function NewFunnelPage() {
   const openOfferPicker = useCallback(async () => {
     const selected = await (window as any).shopify.resourcePicker({
       type: "product",
-      multiple: false,
-      selectionIds: offerProduct ? [{ id: offerProduct.id }] : [],
+      multiple: true,
+      selectionIds: offerProducts.map((p) => ({ id: p.id })),
     });
-    if (selected?.[0]) {
-      const p = selected[0];
-      const v = p.variants?.[0];
-      setOfferProduct({
-        id: p.id,
-        title: p.title,
-        imageUrl: p.images?.[0]?.originalSrc || "",
-        variantId: v?.id ? extractNumericId(v.id) : "",
-        price: v?.price || "0",
-      });
+    if (selected) {
+      setOfferProducts(
+        selected.map((p: any) => {
+          const v = p.variants?.[0];
+          return {
+            id: p.id,
+            title: p.title,
+            imageUrl: p.images?.[0]?.originalSrc || "",
+            variantId: v?.id ? extractNumericId(v.id) : "",
+            price: v?.price || "0",
+          };
+        })
+      );
     }
-  }, [offerProduct]);
+  }, [offerProducts]);
 
   const removeTrigger = (id: string) =>
     setTriggerProducts((prev) => prev.filter((p) => p.id !== id));
+  const removeOfferProduct = (id: string) =>
+    setOfferProducts((prev) => prev.filter((p) => p.id !== id));
 
   const triggerProductIds = triggerProducts
     .map((p) => extractNumericId(p.id))
     .join(",");
-  const offerProductId = offerProduct ? extractNumericId(offerProduct.id) : "";
+  // Primary offer product (first selected) for backward compat fields
+  const primaryOffer = offerProducts[0] || null;
+  const offerProductId = primaryOffer ? extractNumericId(primaryOffer.id) : "";
+  const allOfferProductIds = offerProducts.map((p) => extractNumericId(p.id)).join(",");
 
   // Filter placement/type options to what the plan allows
   const allowedPlacementOptions = placementOptions.map((o) => ({
@@ -262,10 +275,11 @@ export default function NewFunnelPage() {
         {/* Hidden fields carrying the resolved IDs */}
         <input type="hidden" name="triggerProductIds" value={triggerProductIds} />
         <input type="hidden" name="offerProductId" value={offerProductId} />
-        <input type="hidden" name="offerTitle" value={offerProduct?.title || ""} />
-        <input type="hidden" name="offerImageUrl" value={offerProduct?.imageUrl || ""} />
-        <input type="hidden" name="offerVariantId" value={offerProduct?.variantId || ""} />
-        <input type="hidden" name="offerPrice" value={offerProduct?.price || "0"} />
+        <input type="hidden" name="offerProductIds" value={allOfferProductIds} />
+        <input type="hidden" name="offerTitle" value={primaryOffer?.title || ""} />
+        <input type="hidden" name="offerImageUrl" value={primaryOffer?.imageUrl || ""} />
+        <input type="hidden" name="offerVariantId" value={primaryOffer?.variantId || ""} />
+        <input type="hidden" name="offerPrice" value={primaryOffer?.price || "0"} />
 
         <Layout>
           {/* ── Funnel details ── */}
@@ -333,6 +347,14 @@ export default function NewFunnelPage() {
                     value={displayStyle}
                     onChange={setDisplayStyle}
                   />
+                  {!limits.displayStyles && (
+                    <div style={{ marginTop: "-8px", padding: "10px 14px", background: "#fff8e1", border: "1px solid #f5c842", borderRadius: "8px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: "13px", color: "#7a5c00" }}>
+                        🔒 <strong>Carousel & Grid display styles</strong> are not available on your <strong>{plan}</strong> plan. The default style will be used.
+                      </span>
+                      <button type="button" onClick={() => navigate(`/app/pricing${qs}`)} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>Upgrade →</button>
+                    </div>
+                  )}
                 </FormLayout>
               </BlockStack>
             </Card>
@@ -390,47 +412,42 @@ export default function NewFunnelPage() {
             </Card>
           </Layout.Section>
 
-          {/* ── Offer product ── */}
+          {/* ── Offer products ── */}
           <Layout.Section>
             <Card>
               <BlockStack gap="400">
                 <BlockStack gap="100">
-                  <Text variant="headingMd" as="h2">Offer product</Text>
+                  <Text variant="headingMd" as="h2">Offer products</Text>
                   <Text variant="bodySm" tone="subdued" as="p">
-                    The product you want to recommend to the customer.
+                    The product(s) you want to recommend to the customer. Select multiple to show a carousel of offers.
                   </Text>
                 </BlockStack>
 
-                {offerProduct && (
-                  <InlineStack gap="300" align="space-between" blockAlign="center">
-                    <InlineStack gap="300" blockAlign="center">
-                      <Thumbnail
-                        source={offerProduct.imageUrl || "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_small.png"}
-                        alt={offerProduct.title}
-                        size="small"
-                      />
-                      <BlockStack gap="050">
-                        <Text as="span" variant="bodyMd" fontWeight="semibold">
-                          {offerProduct.title}
-                        </Text>
-                        <Badge tone="success">Offer product</Badge>
-                      </BlockStack>
-                    </InlineStack>
-                    <Button
-                      size="slim"
-                      variant="plain"
-                      onClick={() => setOfferProduct(null)}
-                    >
-                      Change
-                    </Button>
-                  </InlineStack>
+                {offerProducts.length > 0 && (
+                  <BlockStack gap="200">
+                    {offerProducts.map((p) => (
+                      <InlineStack key={p.id} gap="300" align="space-between" blockAlign="center">
+                        <InlineStack gap="300" blockAlign="center">
+                          <Thumbnail
+                            source={p.imageUrl || "https://cdn.shopify.com/s/files/1/0533/2089/files/placeholder-images-product-1_small.png"}
+                            alt={p.title}
+                            size="small"
+                          />
+                          <BlockStack gap="050">
+                            <Text as="span" variant="bodyMd" fontWeight="semibold">{p.title}</Text>
+                            <Badge tone="success">Offer product</Badge>
+                          </BlockStack>
+                        </InlineStack>
+                        <Button size="slim" tone="critical" variant="plain" onClick={() => removeOfferProduct(p.id)}>Remove</Button>
+                      </InlineStack>
+                    ))}
+                    <Divider />
+                  </BlockStack>
                 )}
 
-                {!offerProduct && (
-                  <Button onClick={openOfferPicker} variant="secondary">
-                    Select offer product
-                  </Button>
-                )}
+                <Button onClick={openOfferPicker} variant="secondary">
+                  {offerProducts.length === 0 ? "Select offer product(s)" : "Change offer products"}
+                </Button>
               </BlockStack>
             </Card>
           </Layout.Section>
@@ -508,7 +525,7 @@ export default function NewFunnelPage() {
             content: "Save funnel",
             submit: true,
             loading: isSubmitting,
-            disabled: !name || !offerProduct || blocked
+            disabled: !name || offerProducts.length === 0 || blocked
               || !limits.allowedPlacements.includes(placement)
               || !limits.allowedOfferTypes.includes(offerType),
           }}

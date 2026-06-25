@@ -54,9 +54,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (!matched.length) return json({ funnels: [] }, { headers: CORS });
 
-  // Fetch real product titles from Shopify Admin API using the stored offline token
-  const offerProductIds = [...new Set(matched.map((f) => f.offerProductId).filter(Boolean))];
-  const productTitles: Record<string, string> = {};
+  // Collect all offer product IDs across funnels (including multi-product funnels)
+  const allOfferIds = [...new Set(matched.flatMap((f) => {
+    const ids = f.offerProductIds && f.offerProductIds.length > 0 ? f.offerProductIds : (f.offerProductId ? [f.offerProductId] : []);
+    return ids;
+  }).filter(Boolean))];
+
+  const productData: Record<string, { title: string; imageUrl: string; variantId: string; price: number }> = {};
 
   try {
     const session = await prisma.session.findFirst({
@@ -64,34 +68,51 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       select: { accessToken: true },
     });
 
-    if (session?.accessToken && offerProductIds.length > 0) {
+    if (session?.accessToken && allOfferIds.length > 0) {
       const res = await fetch(
-        `https://${shop}/admin/api/2024-01/products.json?ids=${offerProductIds.join(",")}&fields=id,title&limit=50`,
+        `https://${shop}/admin/api/2024-01/products.json?ids=${allOfferIds.join(",")}&fields=id,title,images,variants&limit=50`,
         { headers: { "X-Shopify-Access-Token": session.accessToken } }
       );
       if (res.ok) {
         const data = await res.json();
-        (data.products || []).forEach((p: { id: number; title: string }) => {
-          productTitles[String(p.id)] = p.title;
+        (data.products || []).forEach((p: { id: number; title: string; images: Array<{ src: string }>; variants: Array<{ id: number; price: string }> }) => {
+          productData[String(p.id)] = {
+            title: p.title,
+            imageUrl: p.images?.[0]?.src || "",
+            variantId: p.variants?.[0]?.id ? String(p.variants[0].id) : "",
+            price: parseFloat(p.variants?.[0]?.price || "0"),
+          };
         });
       }
     }
   } catch (_) {}
 
-  const result = matched.slice(0, 6).map((f) => ({
-    id: f.id,
-    offerType: f.offerType,
-    offerTitle: productTitles[f.offerProductId] || f.name,
-    offerProductId: f.offerProductId,
-    offerImageUrl: f.offerImageUrl,
-    offerVariantId: f.offerVariantId,
-    offerPrice: f.offerPrice,
-    discountType: limits.discountCodes ? f.discountType : "none",
-    discountValue: limits.discountCodes ? f.discountValue : 0,
-    discountCode: limits.discountCodes ? f.discountCode : "",
-    displayStyle: limits.displayStyles ? f.displayStyle : "carousel",
-    widgetTitle: limits.customWidgetTitle ? f.widgetTitle : "",
-  }));
+  // Expand multi-product funnels into individual offer entries
+  const result: object[] = [];
+  for (const f of matched) {
+    const ids = f.offerProductIds && f.offerProductIds.length > 0 ? f.offerProductIds : (f.offerProductId ? [f.offerProductId] : []);
+    for (let i = 0; i < ids.length; i++) {
+      const pid = ids[i];
+      const pd = productData[pid];
+      result.push({
+        id: `${f.id}_${i}`,
+        funnelId: f.id,
+        offerType: f.offerType,
+        offerTitle: pd?.title || (i === 0 ? f.name : `Product ${pid}`),
+        offerProductId: pid,
+        offerImageUrl: pd?.imageUrl || (i === 0 ? f.offerImageUrl : ""),
+        offerVariantId: pd?.variantId || (i === 0 ? f.offerVariantId : ""),
+        offerPrice: pd?.price ?? (i === 0 ? f.offerPrice : 0),
+        discountType: limits.discountCodes ? f.discountType : "none",
+        discountValue: limits.discountCodes ? f.discountValue : 0,
+        discountCode: limits.discountCodes ? f.discountCode : "",
+        displayStyle: limits.displayStyles ? f.displayStyle : "carousel",
+        widgetTitle: limits.customWidgetTitle ? f.widgetTitle : "",
+      });
+      if (result.length >= 10) break;
+    }
+    if (result.length >= 10) break;
+  }
 
   return json({ funnels: result }, { headers: CORS });
 };
