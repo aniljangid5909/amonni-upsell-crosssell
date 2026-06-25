@@ -542,24 +542,26 @@ export default function PricingPage() {
                 </Text>
                 <InlineStack gap="300">
                   {(["starter", "growth", "pro"] as const).map((p) => (
-                    <button
-                      key={p}
-                      onClick={() => submit({ _action: "dev_override", overridePlan: p }, { method: "post" })}
-                      disabled={loading}
-                      style={{
-                        padding: "8px 18px",
-                        borderRadius: "8px",
-                        border: activePlan === p ? "2px solid #0c7a3e" : "1px solid #ccc",
-                        background: activePlan === p ? "#f0fff4" : "#fff",
-                        color: activePlan === p ? "#0c7a3e" : "#333",
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      {activePlan === p ? "✓ " : ""}{p.charAt(0).toUpperCase() + p.slice(1)}
-                    </button>
+                    <form key={p} method="post" style={{ display: "inline" }}>
+                      <input type="hidden" name="_action" value="dev_override" />
+                      <input type="hidden" name="overridePlan" value={p} />
+                      <button
+                        type="submit"
+                        style={{
+                          padding: "8px 18px",
+                          borderRadius: "8px",
+                          border: activePlan === p ? "2px solid #0c7a3e" : "1px solid #ccc",
+                          background: activePlan === p ? "#f0fff4" : "#fff",
+                          color: activePlan === p ? "#0c7a3e" : "#333",
+                          fontWeight: 600,
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                        }}
+                      >
+                        {activePlan === p ? "✓ " : ""}{p.charAt(0).toUpperCase() + p.slice(1)}
+                      </button>
+                    </form>
                   ))}
                 </InlineStack>
               </BlockStack>
