@@ -1,7 +1,7 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
-import { useState } from "react";
+import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate } from "@remix-run/react";
+import { useState, useEffect } from "react";
 import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { clearPlanCache } from "../plan.server";
@@ -178,8 +178,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const gqlInterval = interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS";
   const planName = `Amoni Upsell ${plan.name} (${interval === "yearly" ? "Yearly" : "Monthly"})`;
 
-  const appUrl = process.env.SHOPIFY_APP_URL || `https://${shop}`;
-  const returnUrl = `${appUrl}/app/pricing?shop=${shop}&host=${host}&billing=1`;
+  // Use the request origin (tunnel URL in dev, app URL in prod) — avoids relying on env var
+  const origin = new URL(request.url).origin;
+  const returnUrl = `${origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
 
   const res = await admin.graphql(`
     mutation AppSubscriptionCreate($name: String!, $returnUrl: URL!, $lineItems: [AppSubscriptionLineItemInput!]!, $test: Boolean) {
@@ -209,26 +210,38 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const { confirmationUrl, userErrors } = body?.data?.appSubscriptionCreate || {};
 
   if (userErrors?.length) {
-    return json({ error: userErrors[0].message }, { status: 400 });
+    return json({ error: userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null });
   }
 
-  if (confirmationUrl) {
-    return redirect(confirmationUrl);
+  if (!confirmationUrl) {
+    return json({ error: "No confirmation URL returned from Shopify.", confirmationUrl: null });
   }
 
-  return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
+  // Return the URL to the client — the browser does a top-level redirect via window.top
+  // so Shopify's billing page loads outside the iframe
+  return json({ confirmationUrl, error: null });
 };
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 export default function PricingPage() {
   const { shop, host, activePlan, activePlanName, billingInterval, activeSubscriptionId, fromBilling, isTest } =
     useLoaderData<typeof loader>();
+  const navigate = useNavigate();
   const [interval, setInterval] = useState<"monthly" | "yearly">(
     billingInterval as "monthly" | "yearly"
   );
   const submit = useSubmit();
   const navigation = useNavigation();
+  const actionData = useActionData<{ confirmationUrl: string | null; error: string | null }>();
   const loading = navigation.state === "submitting";
+
+  // When Shopify returns a billing confirmation URL, do a top-level redirect
+  // (window.top breaks out of the embedded app iframe to Shopify's billing page)
+  useEffect(() => {
+    if (actionData?.confirmationUrl) {
+      window.top!.location.href = actionData.confirmationUrl;
+    }
+  }, [actionData]);
 
   const qs = new URLSearchParams();
   if (shop) qs.set("shop", shop);
@@ -248,7 +261,7 @@ export default function PricingPage() {
 
   return (
     <Page
-      backAction={{ content: "Funnels", url: `/app/funnels${qsStr}` }}
+      backAction={{ content: "Funnels", onAction: () => navigate(`/app/funnels${qsStr}`) }}
       title="Pricing plans"
       subtitle="Choose the plan that fits your store. Upgrade or downgrade anytime."
     >
@@ -258,6 +271,15 @@ export default function PricingPage() {
           <Layout.Section>
             <Banner tone="success" title={`${activePlanName} activated!`}>
               <p>Your plan is now active. All {activePlan === "pro" ? "Pro" : "Growth"} features are unlocked.</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Error from action */}
+        {actionData?.error && (
+          <Layout.Section>
+            <Banner tone="critical" title="Subscription error">
+              <p>{actionData.error}</p>
             </Banner>
           </Layout.Section>
         )}
