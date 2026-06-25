@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate, useFetcher } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
@@ -250,14 +250,6 @@ export default function PricingPage() {
     submit({ _action: "cancel", subscriptionId: activeSubscriptionId }, { method: "post" });
   }
 
-  // Dev override: use fetcher so the POST doesn't cause a full-page navigation
-  const devFetcher = useFetcher();
-  useEffect(() => {
-    if (devFetcher.state === "idle" && devFetcher.data) {
-      // After the override is set, navigate to pricing to refresh the plan display
-      navigate(`/app/pricing${qsStr}&billing=1`);
-    }
-  }, [devFetcher.state, devFetcher.data]);
 
   const yearlyDiscount = Math.round((1 - 15.99 / 19.99) * 100);
 
@@ -568,11 +560,13 @@ export default function PricingPage() {
                     <button
                       key={p}
                       type="button"
-                      onClick={() => devFetcher.submit(
-                        { _action: "dev_override", overridePlan: p, shop },
-                        { method: "post", action: `/app/pricing${qsStr}` }
-                      )}
-                      disabled={devFetcher.state !== "idle"}
+                      onClick={() => {
+                        fetch("/api/dev-override", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ shop, plan: p }),
+                        }).then(() => window.location.reload());
+                      }}
                       style={{
                         padding: "8px 18px",
                         borderRadius: "8px",
@@ -581,11 +575,11 @@ export default function PricingPage() {
                         color: activePlan === p ? "#0c7a3e" : "#333",
                         fontWeight: 600,
                         fontSize: "13px",
-                        cursor: devFetcher.state !== "idle" ? "wait" : "pointer",
+                        cursor: "pointer",
                         fontFamily: "inherit",
                       }}
                     >
-                      {devFetcher.state !== "idle" ? "Setting..." : (activePlan === p ? "✓ " : "") + p.charAt(0).toUpperCase() + p.slice(1)}
+                      {activePlan === p ? "✓ " : ""}{p.charAt(0).toUpperCase() + p.slice(1)}
                     </button>
                   ))}
                 </InlineStack>
