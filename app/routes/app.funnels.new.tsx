@@ -33,7 +33,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     getMonthlyImpressions(session.shop),
     prisma.funnel.count({ where: { shop: session.shop, status: "active" } }),
   ]);
-  const limits = PLAN_LIMITS[plan];
+  const rawLimits = PLAN_LIMITS[plan];
+  // JSON.stringify converts Infinity to null — use explicit nulls to signal "unlimited"
+  const limits = {
+    ...rawLimits,
+    maxFunnels: isFinite(rawLimits.maxFunnels) ? rawLimits.maxFunnels : null,
+    maxImpressionsPerMonth: isFinite(rawLimits.maxImpressionsPerMonth) ? rawLimits.maxImpressionsPerMonth : null,
+  };
   return json({
     host: url.searchParams.get("host") ?? "",
     shop: url.searchParams.get("shop") ?? session.shop,
@@ -164,8 +170,8 @@ export default function NewFunnelPage() {
   const isSubmitting = navigation.state === "submitting";
   const navigate = useNavigate();
 
-  const atFunnelLimit = isFinite(limits.maxFunnels) && activeFunnelCount >= limits.maxFunnels;
-  const atImpressionLimit = isFinite(limits.maxImpressionsPerMonth) && monthlyImpressions >= limits.maxImpressionsPerMonth;
+  const atFunnelLimit = limits.maxFunnels !== null && activeFunnelCount >= limits.maxFunnels;
+  const atImpressionLimit = limits.maxImpressionsPerMonth !== null && monthlyImpressions >= limits.maxImpressionsPerMonth;
   const blocked = atFunnelLimit || atImpressionLimit;
 
   const [discountType, setDiscountType] = useState("none");

@@ -24,7 +24,12 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }),
   ]);
 
-  const limits = PLAN_LIMITS[plan];
+  const rawLimits = PLAN_LIMITS[plan];
+  const limits = {
+    ...rawLimits,
+    maxFunnels: isFinite(rawLimits.maxFunnels) ? rawLimits.maxFunnels : null,
+    maxImpressionsPerMonth: isFinite(rawLimits.maxImpressionsPerMonth) ? rawLimits.maxImpressionsPerMonth : null,
+  };
   const activeFunnelCount = funnels.filter((f) => f.status === "active").length;
 
   const funnelStats = funnels.map((f) => ({
@@ -94,16 +99,14 @@ export default function FunnelsPage() {
   const submit = useSubmit();
   const navigate = useNavigate();
 
-  const atFunnelLimit = limits.maxFunnels !== null && activeFunnelCount >= (limits.maxFunnels as number);
-  const atImpressionLimit = limits.maxImpressionsPerMonth !== null &&
-    isFinite(limits.maxImpressionsPerMonth as number) &&
-    monthlyImpressions >= (limits.maxImpressionsPerMonth as number);
+  const atFunnelLimit = limits.maxFunnels !== null && activeFunnelCount >= limits.maxFunnels;
+  const atImpressionLimit = limits.maxImpressionsPerMonth !== null && monthlyImpressions >= limits.maxImpressionsPerMonth;
 
-  const funnelProgress = limits.maxFunnels && isFinite(limits.maxFunnels as number)
-    ? Math.min(100, Math.round((activeFunnelCount / (limits.maxFunnels as number)) * 100))
+  const funnelProgress = limits.maxFunnels !== null
+    ? Math.min(100, Math.round((activeFunnelCount / limits.maxFunnels) * 100))
     : null;
-  const impressionProgress = limits.maxImpressionsPerMonth && isFinite(limits.maxImpressionsPerMonth as number)
-    ? Math.min(100, Math.round((monthlyImpressions / (limits.maxImpressionsPerMonth as number)) * 100))
+  const impressionProgress = limits.maxImpressionsPerMonth !== null
+    ? Math.min(100, Math.round((monthlyImpressions / limits.maxImpressionsPerMonth) * 100))
     : null;
 
   const rowMarkup = funnels.map((funnel, index) => (
@@ -156,7 +159,7 @@ export default function FunnelsPage() {
                 <InlineStack align="space-between">
                   <Text variant="bodySm" as="span">Active funnels</Text>
                   <Text variant="bodySm" as="span">
-                    {activeFunnelCount} / {isFinite(limits.maxFunnels as number) ? limits.maxFunnels : "∞"}
+                    {activeFunnelCount} / {limits.maxFunnels !== null ? limits.maxFunnels : "∞"}
                   </Text>
                 </InlineStack>
                 {funnelProgress !== null && (
