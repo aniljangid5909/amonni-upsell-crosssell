@@ -182,44 +182,48 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const origin = new URL(request.url).origin;
   const returnUrl = `${origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
 
-  const res = await admin.graphql(`
-    mutation AppSubscriptionCreate($name: String!, $returnUrl: URL!, $lineItems: [AppSubscriptionLineItemInput!]!, $test: Boolean) {
-      appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test, trialDays: 7) {
-        appSubscription { id status }
-        confirmationUrl
-        userErrors { field message }
+  try {
+    const res = await admin.graphql(`
+      mutation AppSubscriptionCreate($name: String!, $returnUrl: URL!, $lineItems: [AppSubscriptionLineItemInput!]!, $test: Boolean) {
+        appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test) {
+          appSubscription { id status }
+          confirmationUrl
+          userErrors { field message }
+        }
       }
-    }
-  `, {
-    variables: {
-      name: planName,
-      returnUrl,
-      test: IS_TEST,
-      lineItems: [{
-        plan: {
-          appRecurringPricingDetails: {
-            price: { amount: price, currencyCode: "USD" },
-            interval: gqlInterval,
+    `, {
+      variables: {
+        name: planName,
+        returnUrl,
+        test: IS_TEST,
+        lineItems: [{
+          plan: {
+            appRecurringPricingDetails: {
+              price: { amount: price, currencyCode: "USD" },
+              interval: gqlInterval,
+            },
           },
-        },
-      }],
-    },
-  });
+        }],
+      },
+    });
 
-  const body = await res.json();
-  const { confirmationUrl, userErrors } = body?.data?.appSubscriptionCreate || {};
+    const body = await res.json();
+    const { confirmationUrl, userErrors } = body?.data?.appSubscriptionCreate || {};
 
-  if (userErrors?.length) {
-    return json({ error: userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null });
+    if (userErrors?.length) {
+      return json({ error: userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null });
+    }
+
+    if (!confirmationUrl) {
+      const rawError = JSON.stringify(body?.errors || body?.data || "No confirmation URL returned");
+      return json({ error: `Shopify error: ${rawError}`, confirmationUrl: null });
+    }
+
+    return json({ confirmationUrl, error: null });
+  } catch (err: any) {
+    const msg = err?.message || String(err);
+    return json({ error: `Request failed: ${msg}`, confirmationUrl: null });
   }
-
-  if (!confirmationUrl) {
-    return json({ error: "No confirmation URL returned from Shopify.", confirmationUrl: null });
-  }
-
-  // Return the URL to the client — the browser does a top-level redirect via window.top
-  // so Shopify's billing page loads outside the iframe
-  return json({ confirmationUrl, error: null });
 };
 
 // ── UI ────────────────────────────────────────────────────────────────────────
