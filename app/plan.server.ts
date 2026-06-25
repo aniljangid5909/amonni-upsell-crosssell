@@ -62,12 +62,26 @@ export function setPlanOverride(shop: string, plan: PlanId) {
  * Returns the current plan for a shop by checking Shopify active subscriptions.
  * Falls back to "starter" if no paid subscription found.
  */
+async function getDbDevOverride(shop: string): Promise<PlanId | null> {
+  try {
+    const rec = await prisma.session.findUnique({
+      where: { id: `__dev_plan_${shop}` },
+      select: { state: true },
+    });
+    if (rec?.state && ["starter", "growth", "pro"].includes(rec.state)) return rec.state as PlanId;
+  } catch (_) {}
+  return null;
+}
+
 export async function getCurrentPlan(
   admin: { graphql: (query: string) => Promise<Response> },
   shop: string
 ): Promise<PlanId> {
   const cached = planCache.get(shop);
   if (cached && cached.expiresAt > Date.now()) return cached.plan;
+
+  const dbOverride = await getDbDevOverride(shop);
+  if (dbOverride) { planCache.set(shop, { plan: dbOverride, expiresAt: Date.now() + CACHE_TTL_MS }); return dbOverride; }
 
   let plan: PlanId = "starter";
   try {
@@ -101,6 +115,9 @@ export async function getCurrentPlan(
 export async function getCurrentPlanByToken(shop: string): Promise<PlanId> {
   const cached = planCache.get(shop);
   if (cached && cached.expiresAt > Date.now()) return cached.plan;
+
+  const dbOverride = await getDbDevOverride(shop);
+  if (dbOverride) { planCache.set(shop, { plan: dbOverride, expiresAt: Date.now() + CACHE_TTL_MS }); return dbOverride; }
 
   let plan: PlanId = "starter";
   try {

@@ -139,22 +139,36 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 // ── Action — create or cancel subscription ───────────────────────────────────
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, billing, session } = await authenticate.admin(request);
+  // Clone request so we can read formData before authenticate (which consumes the body)
+  const cloned = request.clone();
+  const preFormData = await cloned.formData();
+  const _actionPre = preFormData.get("_action") as string;
   const url = new URL(request.url);
   const host = url.searchParams.get("host") ?? "";
-  const shop = session.shop;
 
-  const formData = await request.formData();
-  const _action = formData.get("_action") as string;
-
-  // Dev override — bypass billing for local testing
-  if (_action === "dev_override" && process.env.DISABLE_DEV_OVERRIDE !== "true") {
-    const overridePlan = formData.get("overridePlan") as string;
-    if (overridePlan === "growth" || overridePlan === "pro" || overridePlan === "starter") {
+  // Dev override runs BEFORE authenticate.admin so it never triggers a redirect
+  if (_actionPre === "dev_override" && process.env.DISABLE_DEV_OVERRIDE !== "true") {
+    const overridePlan = preFormData.get("overridePlan") as string;
+    const shop = preFormData.get("shop") as string || url.searchParams.get("shop") || "";
+    if ((overridePlan === "growth" || overridePlan === "pro" || overridePlan === "starter") && shop) {
       setPlanOverride(shop, overridePlan as any);
+      // Also persist to DB so it survives serverless restarts
+      try {
+        const { prisma } = await import("../shopify.server");
+        await prisma.session.upsert({
+          where: { id: `__dev_plan_${shop}` },
+          create: { id: `__dev_plan_${shop}`, shop, state: overridePlan, isOnline: false },
+          update: { state: overridePlan },
+        });
+      } catch (_) {}
     }
     return json({ ok: true, plan: overridePlan });
   }
+
+  const { admin, billing, session } = await authenticate.admin(request);
+  const shop = session.shop;
+  const formData = await request.formData();
+  const _action = formData.get("_action") as string;
 
   // Cancel subscription
   if (_action === "cancel") {
@@ -555,7 +569,7 @@ export default function PricingPage() {
                       key={p}
                       type="button"
                       onClick={() => devFetcher.submit(
-                        { _action: "dev_override", overridePlan: p },
+                        { _action: "dev_override", overridePlan: p, shop },
                         { method: "post", action: `/app/pricing${qsStr}` }
                       )}
                       disabled={devFetcher.state !== "idle"}
