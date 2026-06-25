@@ -26,7 +26,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       include: { impressions: { select: { eventType: true, revenue: true, createdAt: true } } },
       orderBy: { createdAt: "desc" },
     }),
-    prisma.funnelEvent.findMany({ where: { shop, createdAt: { gte: monthStart } }, select: { eventType: true, revenue: true } }),
+    prisma.funnelEvent.findMany({ where: { shop, createdAt: { gte: monthStart } }, select: { eventType: true, revenue: true, funnelId: true } }),
     prisma.funnelEvent.findMany({ where: { shop, createdAt: { gte: lastMonthStart, lt: monthStart } }, select: { eventType: true, revenue: true } }),
     prisma.funnelEvent.findMany({ where: { shop, createdAt: { gte: weekStart } }, select: { eventType: true, createdAt: true } }),
   ]);
@@ -77,6 +77,22 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     };
   }).sort((a, b) => b.impressions - a.impressions);
 
+  // Per-placement breakdown (Pro) — derive placement from funnelId→funnel map
+  const funnelPlacementMap: Record<string, string> = {};
+  funnels.forEach(f => { funnelPlacementMap[f.id] = f.placement; });
+  const placements = ["post-purchase", "cart", "product", "checkout"];
+  const placementBreakdown = placements.map(p => {
+    const events = thisMonthEvents.filter(e => funnelPlacementMap[e.funnelId] === p);
+    const imp = events.filter(e => e.eventType === "impression").length;
+    const acc = events.filter(e => e.eventType === "accept").length;
+    const rev = events.filter(e => e.eventType === "accept").reduce((s, e) => s + (e.revenue || 0), 0);
+    return { placement: p, impressions: imp, accepts: acc, revenue: rev, conversionRate: imp > 0 ? ((acc / imp) * 100).toFixed(1) : "0.0" };
+  }).filter(p => p.impressions > 0 || funnels.some(f => f.placement === p));
+
+  // CSV export data (all funnels, full stats)
+  const csvRows = funnelStats.map(f => `"${f.name}","${f.placement}","${f.offerType}","${f.status}",${f.impressions},${f.accepts},${f.conversionRate}%,$${f.revenue.toFixed(2)}`);
+  const csvData = `Name,Placement,Offer type,Status,Impressions,Accepts,Conversion rate,Revenue\n${csvRows.join("\n")}`;
+
   return json({
     shop, plan, limits, activeFunnelCount,
     monthlyImpressions,
@@ -84,7 +100,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     stats: { thisImpressions, thisAccepts, thisRevenue, thisConversion, lastImpressions, lastAccepts, lastRevenue },
     dailyData,
     funnelStats: funnelStats.slice(0, 5),
+    allFunnelStats: funnelStats,
     totalFunnels: funnels.length,
+    placementBreakdown,
+    csvData,
   });
 };
 
@@ -137,7 +156,7 @@ function MiniBar({ label, impressions, accepts, maxImpressions }: { label: strin
 }
 
 export default function DashboardPage() {
-  const { shop, plan, limits, activeFunnelCount, monthlyImpressions, host, stats, dailyData, funnelStats, totalFunnels } =
+  const { shop, plan, limits, activeFunnelCount, monthlyImpressions, host, stats, dailyData, funnelStats, allFunnelStats, totalFunnels, placementBreakdown, csvData } =
     useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const params = new URLSearchParams();
@@ -317,8 +336,90 @@ export default function DashboardPage() {
           </Layout.Section>
         </Layout>
 
-        {/* ── Advanced analytics (Pro only) ── */}
-        {!isPro && (
+        {/* ── Advanced analytics ── */}
+        {isPro ? (
+          <BlockStack gap="400">
+            {/* Per-placement breakdown */}
+            <Box background="bg-surface" borderRadius="300" padding="400" borderWidth="025" borderColor="border">
+              <BlockStack gap="300">
+                <InlineStack align="space-between" blockAlign="center">
+                  <Text variant="headingSm" as="h3">Revenue by placement</Text>
+                  <Button size="slim" variant="plain" onClick={() => {
+                    const blob = new Blob([csvData], { type: "text/csv" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url; a.download = "amoni-funnels-export.csv"; a.click();
+                    URL.revokeObjectURL(url);
+                  }}>Export to CSV ↓</Button>
+                </InlineStack>
+                {placementBreakdown.length === 0 ? (
+                  <Text variant="bodySm" tone="subdued" as="p">No data yet — impressions will appear here once your funnels receive traffic.</Text>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid #e4e4e4" }}>
+                          {["Placement", "Impressions", "Accepts", "Conv. rate", "Revenue"].map(h => (
+                            <th key={h} style={{ textAlign: "left", padding: "6px 12px", fontWeight: 600, color: "#555", whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {placementBreakdown.map((p, i) => (
+                          <tr key={p.placement} style={{ background: i % 2 === 0 ? "#fafafa" : "#fff" }}>
+                            <td style={{ padding: "8px 12px", textTransform: "capitalize" }}>{p.placement.replace("-", " ")}</td>
+                            <td style={{ padding: "8px 12px" }}>{p.impressions.toLocaleString()}</td>
+                            <td style={{ padding: "8px 12px" }}>{p.accepts.toLocaleString()}</td>
+                            <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1a7f5a" }}>{p.conversionRate}%</td>
+                            <td style={{ padding: "8px 12px" }}>{p.revenue > 0 ? `$${p.revenue.toFixed(2)}` : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </BlockStack>
+            </Box>
+
+            {/* Full funnel table with revenue */}
+            <Box background="bg-surface" borderRadius="300" padding="400" borderWidth="025" borderColor="border">
+              <BlockStack gap="300">
+                <Text variant="headingSm" as="h3">All funnels — revenue breakdown</Text>
+                {allFunnelStats.length === 0 ? (
+                  <Text variant="bodySm" tone="subdued" as="p">Create a funnel to start tracking revenue.</Text>
+                ) : (
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                      <thead>
+                        <tr style={{ borderBottom: "1px solid #e4e4e4" }}>
+                          {["Funnel", "Placement", "Type", "Status", "Impressions", "Accepts", "Conv.", "Revenue"].map(h => (
+                            <th key={h} style={{ textAlign: "left", padding: "6px 12px", fontWeight: 600, color: "#555", whiteSpace: "nowrap" }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {allFunnelStats.map((f, i) => (
+                          <tr key={f.id} style={{ background: i % 2 === 0 ? "#fafafa" : "#fff" }}>
+                            <td style={{ padding: "8px 12px", fontWeight: 500, maxWidth: "200px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{f.name}</td>
+                            <td style={{ padding: "8px 12px", textTransform: "capitalize" }}>{f.placement.replace("-", " ")}</td>
+                            <td style={{ padding: "8px 12px", textTransform: "capitalize" }}>{f.offerType}</td>
+                            <td style={{ padding: "8px 12px" }}>
+                              <span style={{ padding: "2px 8px", borderRadius: "10px", fontSize: "11px", background: f.status === "active" ? "#e3f5eb" : "#f0f0f0", color: f.status === "active" ? "#0c7a3e" : "#888" }}>{f.status}</span>
+                            </td>
+                            <td style={{ padding: "8px 12px" }}>{f.impressions.toLocaleString()}</td>
+                            <td style={{ padding: "8px 12px" }}>{f.accepts.toLocaleString()}</td>
+                            <td style={{ padding: "8px 12px", fontWeight: 600, color: "#1a7f5a" }}>{f.conversionRate}%</td>
+                            <td style={{ padding: "8px 12px" }}>{f.revenue > 0 ? `$${f.revenue.toFixed(2)}` : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </BlockStack>
+            </Box>
+          </BlockStack>
+        ) : (
           <Box background="bg-surface" borderRadius="300" padding="400" borderWidth="025" borderColor="border">
             <InlineStack align="space-between" blockAlign="center">
               <BlockStack gap="100">
@@ -326,7 +427,7 @@ export default function DashboardPage() {
                   <Text variant="headingSm" as="h3">Advanced analytics</Text>
                   <span style={{ background: "#1a1a6e", color: "#fff", fontSize: "11px", fontWeight: 700, padding: "2px 8px", borderRadius: "20px" }}>Pro</span>
                 </InlineStack>
-                <Text variant="bodySm" tone="subdued" as="p">A/B testing, per-placement revenue breakdown, customer segment analysis, and export to CSV.</Text>
+                <Text variant="bodySm" tone="subdued" as="p">Per-placement revenue breakdown, full funnel revenue table, and export to CSV.</Text>
               </BlockStack>
               <Button variant="primary" onClick={() => navigate(`/app/pricing${qs}`)}>Upgrade to Pro</Button>
             </InlineStack>
