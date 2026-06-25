@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
@@ -151,9 +151,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   if (_action === "dev_override" && process.env.DISABLE_DEV_OVERRIDE !== "true") {
     const overridePlan = formData.get("overridePlan") as string;
     if (overridePlan === "growth" || overridePlan === "pro" || overridePlan === "starter") {
-      setPlanOverride(shop, overridePlan);
+      setPlanOverride(shop, overridePlan as any);
     }
-    return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
+    return json({ ok: true, plan: overridePlan });
   }
 
   // Cancel subscription
@@ -235,6 +235,15 @@ export default function PricingPage() {
     if (!confirm("Cancel your subscription? You'll be downgraded to the Starter plan.")) return;
     submit({ _action: "cancel", subscriptionId: activeSubscriptionId }, { method: "post" });
   }
+
+  // Dev override: use fetcher so the POST doesn't cause a full-page navigation
+  const devFetcher = useFetcher();
+  useEffect(() => {
+    if (devFetcher.state === "idle" && devFetcher.data) {
+      // After the override is set, navigate to pricing to refresh the plan display
+      navigate(`/app/pricing${qsStr}&billing=1`);
+    }
+  }, [devFetcher.state, devFetcher.data]);
 
   const yearlyDiscount = Math.round((1 - 15.99 / 19.99) * 100);
 
@@ -542,26 +551,28 @@ export default function PricingPage() {
                 </Text>
                 <InlineStack gap="300">
                   {(["starter", "growth", "pro"] as const).map((p) => (
-                    <form key={p} method="post" style={{ display: "inline" }}>
-                      <input type="hidden" name="_action" value="dev_override" />
-                      <input type="hidden" name="overridePlan" value={p} />
-                      <button
-                        type="submit"
-                        style={{
-                          padding: "8px 18px",
-                          borderRadius: "8px",
-                          border: activePlan === p ? "2px solid #0c7a3e" : "1px solid #ccc",
-                          background: activePlan === p ? "#f0fff4" : "#fff",
-                          color: activePlan === p ? "#0c7a3e" : "#333",
-                          fontWeight: 600,
-                          fontSize: "13px",
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        {activePlan === p ? "✓ " : ""}{p.charAt(0).toUpperCase() + p.slice(1)}
-                      </button>
-                    </form>
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => devFetcher.submit(
+                        { _action: "dev_override", overridePlan: p },
+                        { method: "post", action: `/app/pricing${qsStr}` }
+                      )}
+                      disabled={devFetcher.state !== "idle"}
+                      style={{
+                        padding: "8px 18px",
+                        borderRadius: "8px",
+                        border: activePlan === p ? "2px solid #0c7a3e" : "1px solid #ccc",
+                        background: activePlan === p ? "#f0fff4" : "#fff",
+                        color: activePlan === p ? "#0c7a3e" : "#333",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        cursor: devFetcher.state !== "idle" ? "wait" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {devFetcher.state !== "idle" ? "Setting..." : (activePlan === p ? "✓ " : "") + p.charAt(0).toUpperCase() + p.slice(1)}
+                    </button>
                   ))}
                 </InlineStack>
               </BlockStack>
