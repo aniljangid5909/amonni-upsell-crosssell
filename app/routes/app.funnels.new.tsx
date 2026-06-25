@@ -19,21 +19,44 @@ import {
   Badge,
   Divider,
   Banner,
+  Tooltip,
 } from "@shopify/polaris";
 import { authenticate, prisma } from "../shopify.server";
 import { createFunnelDiscount } from "../discount.server";
+import { getCurrentPlan, getMonthlyImpressions, PLAN_LIMITS } from "../plan.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
-  await authenticate.admin(request);
+  const { session, admin } = await authenticate.admin(request);
   const url = new URL(request.url);
+  const [plan, monthlyImpressions, activeFunnelCount] = await Promise.all([
+    getCurrentPlan(admin, session.shop),
+    getMonthlyImpressions(session.shop),
+    prisma.funnel.count({ where: { shop: session.shop, status: "active" } }),
+  ]);
+  const limits = PLAN_LIMITS[plan];
   return json({
     host: url.searchParams.get("host") ?? "",
-    shop: url.searchParams.get("shop") ?? "",
+    shop: url.searchParams.get("shop") ?? session.shop,
+    plan,
+    limits,
+    activeFunnelCount,
+    monthlyImpressions,
   });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
+  // Enforce plan limits server-side
+  const plan = await getCurrentPlan(admin, session.shop);
+  const limits = PLAN_LIMITS[plan];
+  const activeFunnelCount = await prisma.funnel.count({ where: { shop: session.shop, status: "active" } });
+  if (isFinite(limits.maxFunnels) && activeFunnelCount >= limits.maxFunnels) {
+    return json({ planError: `Your ${plan} plan allows max ${limits.maxFunnels} active funnel(s). Please upgrade.` }, { status: 403 });
+  }
+  const monthlyImpressions = await getMonthlyImpressions(session.shop);
+  if (isFinite(limits.maxImpressionsPerMonth) && monthlyImpressions >= limits.maxImpressionsPerMonth) {
+    return json({ planError: "Monthly impression limit reached. Please upgrade to create more funnels." }, { status: 403 });
+  }
   const url = new URL(request.url);
   const host = url.searchParams.get("host") ?? "";
   const shop = url.searchParams.get("shop") ?? session.shop;
@@ -132,7 +155,7 @@ function extractNumericId(gid: string) {
 }
 
 export default function NewFunnelPage() {
-  const { shop, host } = useLoaderData<typeof loader>();
+  const { shop, host, plan, limits, activeFunnelCount, monthlyImpressions } = useLoaderData<typeof loader>();
   const params = new URLSearchParams();
   if (shop) params.set("shop", shop);
   if (host) params.set("host", host);
@@ -140,13 +163,17 @@ export default function NewFunnelPage() {
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
+  const atFunnelLimit = isFinite(limits.maxFunnels) && activeFunnelCount >= limits.maxFunnels;
+  const atImpressionLimit = isFinite(limits.maxImpressionsPerMonth) && monthlyImpressions >= limits.maxImpressionsPerMonth;
+  const blocked = atFunnelLimit || atImpressionLimit;
+
   const [discountType, setDiscountType] = useState("none");
   const [discountValue, setDiscountValue] = useState("");
   const [minCartValue, setMinCartValue] = useState("0");
   const [skipSubscribed, setSkipSubscribed] = useState(true);
   const [name, setName] = useState("");
-  const [placement, setPlacement] = useState("cart");
-  const [offerType, setOfferType] = useState("cross-sell");
+  const [placement, setPlacement] = useState(limits.allowedPlacements[0] || "product");
+  const [offerType, setOfferType] = useState(limits.allowedOfferTypes[0] || "cross-sell");
   const [widgetTitle, setWidgetTitle] = useState("");
   const [displayStyle, setDisplayStyle] = useState("carousel");
   const [triggerProducts, setTriggerProducts] = useState<PickedProduct[]>([]);
@@ -196,11 +223,34 @@ export default function NewFunnelPage() {
     .join(",");
   const offerProductId = offerProduct ? extractNumericId(offerProduct.id) : "";
 
+  // Filter placement/type options to what the plan allows
+  const allowedPlacementOptions = placementOptions.map((o) => ({
+    ...o,
+    label: limits.allowedPlacements.includes(o.value) ? o.label : `🔒 ${o.label} (upgrade)`,
+    disabled: !limits.allowedPlacements.includes(o.value),
+  }));
+  const allowedOfferTypeOptions = offerTypeOptions.map((o) => ({
+    ...o,
+    label: limits.allowedOfferTypes.includes(o.value) ? o.label : `🔒 ${o.label} (upgrade)`,
+    disabled: !limits.allowedOfferTypes.includes(o.value),
+  }));
+
   return (
     <Page
       backAction={{ content: "Funnels", url: `/app/funnels${qs}` }}
       title="Create funnel"
     >
+      {blocked && (
+        <div style={{ marginBottom: "16px" }}>
+          <Banner
+            tone="warning"
+            title={atFunnelLimit ? `Funnel limit reached on your ${plan} plan` : "Monthly impression limit reached"}
+          >
+            <p>{atFunnelLimit ? `You have ${activeFunnelCount}/${limits.maxFunnels} active funnels.` : `You've used ${monthlyImpressions}/${limits.maxImpressionsPerMonth} impressions this month.`} Upgrade to create more.</p>
+            <Button variant="plain" url={`/app/pricing${qs}`}>View plans →</Button>
+          </Banner>
+        </div>
+      )}
       <Form method="post">
         {/* Hidden fields carrying the resolved IDs */}
         <input type="hidden" name="triggerProductIds" value={triggerProductIds} />
@@ -229,17 +279,17 @@ export default function NewFunnelPage() {
                   <Select
                     label="Placement"
                     name="placement"
-                    options={placementOptions}
+                    options={allowedPlacementOptions}
                     value={placement}
-                    onChange={(v) => { setPlacement(v); setWidgetTitle(''); }}
+                    onChange={(v) => { if (limits.allowedPlacements.includes(v)) { setPlacement(v); setWidgetTitle(''); } }}
                     helpText="Where this offer appears in the customer journey"
                   />
                   <Select
                     label="Offer type"
                     name="offerType"
-                    options={offerTypeOptions}
+                    options={allowedOfferTypeOptions}
                     value={offerType}
-                    onChange={(v) => { setOfferType(v); setWidgetTitle(''); }}
+                    onChange={(v) => { if (limits.allowedOfferTypes.includes(v)) { setOfferType(v); setWidgetTitle(''); } }}
                   />
                   <TextField
                     label="Widget title"

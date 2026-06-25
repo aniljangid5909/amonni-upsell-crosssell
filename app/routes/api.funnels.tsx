@@ -1,6 +1,7 @@
 import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { prisma } from "../shopify.server";
+import { getCurrentPlanByToken, getMonthlyImpressions, PLAN_LIMITS } from "../plan.server";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -20,6 +21,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (!shop) return json({ funnels: [] }, { headers: CORS });
 
+  // Check plan and enforce impression limit
+  const [plan, monthlyImpressions] = await Promise.all([
+    getCurrentPlanByToken(shop),
+    getMonthlyImpressions(shop),
+  ]);
+  const limits = PLAN_LIMITS[plan];
+  if (isFinite(limits.maxImpressionsPerMonth) && monthlyImpressions >= limits.maxImpressionsPerMonth) {
+    return json({ funnels: [], limitReached: true }, { headers: CORS });
+  }
+
   const funnels = await prisma.funnel.findMany({
     where: {
       shop,
@@ -30,13 +41,16 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     take: 10,
   });
 
-  const matched =
-    productIds.length > 0
-      ? funnels.filter((f) =>
-          f.triggerProductIds.length === 0 ||
-          f.triggerProductIds.some((id) => productIds.includes(id))
-        )
-      : funnels;
+  const matched = funnels.filter((f) => {
+    // Enforce plan: skip funnels for placements/types the plan doesn't allow
+    if (!limits.allowedPlacements.includes(f.placement)) return false;
+    if (!limits.allowedOfferTypes.includes(f.offerType)) return false;
+    // Match by trigger product
+    if (productIds.length > 0) {
+      return f.triggerProductIds.length === 0 || f.triggerProductIds.some((id) => productIds.includes(id));
+    }
+    return true;
+  });
 
   if (!matched.length) return json({ funnels: [] }, { headers: CORS });
 
@@ -72,11 +86,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     offerImageUrl: f.offerImageUrl,
     offerVariantId: f.offerVariantId,
     offerPrice: f.offerPrice,
-    discountType: f.discountType,
-    discountValue: f.discountValue,
-    discountCode: f.discountCode,
-    displayStyle: f.displayStyle,
-    widgetTitle: f.widgetTitle,
+    discountType: limits.discountCodes ? f.discountType : "none",
+    discountValue: limits.discountCodes ? f.discountValue : 0,
+    discountCode: limits.discountCodes ? f.discountCode : "",
+    displayStyle: limits.displayStyles ? f.displayStyle : "carousel",
+    widgetTitle: limits.customWidgetTitle ? f.widgetTitle : "",
   }));
 
   return json({ funnels: result }, { headers: CORS });
