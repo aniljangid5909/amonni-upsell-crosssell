@@ -221,6 +221,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
     return json({ confirmationUrl, error: null });
   } catch (err: any) {
+    // Shopify's Remix adapter throws Response objects on auth/billing errors
+    if (err instanceof Response) {
+      try {
+        const text = await err.text();
+        let msg = text;
+        try { msg = JSON.stringify(JSON.parse(text), null, 0); } catch (_) {}
+        return json({ error: `Shopify error (${err.status}): ${msg}`, confirmationUrl: null });
+      } catch (_) {
+        return json({ error: `Shopify error (${err.status})`, confirmationUrl: null });
+      }
+    }
     const msg = err?.message || String(err);
     return json({ error: `Request failed: ${msg}`, confirmationUrl: null });
   }
