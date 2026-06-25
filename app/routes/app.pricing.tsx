@@ -133,6 +133,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     activeSubscriptionId,
     fromBilling,
     isTest: IS_TEST,
+    showDevPanel: process.env.DISABLE_DEV_OVERRIDE !== "true",
   });
 };
 
@@ -147,7 +148,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const _action = formData.get("_action") as string;
 
   // Dev override — bypass billing for local testing
-  if (_action === "dev_override" && IS_TEST) {
+  if (_action === "dev_override" && process.env.DISABLE_DEV_OVERRIDE !== "true") {
     const overridePlan = formData.get("overridePlan") as string;
     if (overridePlan === "growth" || overridePlan === "pro" || overridePlan === "starter") {
       setPlanOverride(shop, overridePlan);
@@ -202,7 +203,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 export default function PricingPage() {
-  const { shop, host, activePlan, activePlanName, billingInterval, activeSubscriptionId, fromBilling, isTest } =
+  const { shop, host, activePlan, activePlanName, billingInterval, activeSubscriptionId, fromBilling, isTest, showDevPanel } =
     useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [interval, setInterval] = useState<"monthly" | "yearly">(
@@ -529,8 +530,8 @@ export default function PricingPage() {
           </Box>
         </Layout.Section>
 
-        {/* ── Dev override (development only) ── */}
-        {isTest && (
+        {/* ── Dev override (hide by setting DISABLE_DEV_OVERRIDE=true in env) ── */}
+        {showDevPanel && (
           <Layout.Section>
             <Box background="bg-surface-warning" borderRadius="300" padding="400" borderWidth="025" borderColor="border-warning">
               <BlockStack gap="300">
