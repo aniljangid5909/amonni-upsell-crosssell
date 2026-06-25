@@ -145,7 +145,7 @@ export default function FunnelsPage() {
           <BlockStack gap="300">
             <InlineStack align="space-between" blockAlign="center">
               <Text variant="headingSm" as="h3">Plan: {PLAN_LABEL[plan]}</Text>
-              <Button size="slim" variant="plain" url={`/app/pricing${qs}`}>
+              <Button size="slim" variant="plain" onClick={() => navigate(`/app/pricing${qs}`)}>
                 {plan === "pro" ? "Manage plan" : "Upgrade"}
               </Button>
             </InlineStack>
@@ -196,13 +196,13 @@ export default function FunnelsPage() {
         {atFunnelLimit && plan !== "pro" && (
           <Banner tone="warning" title={`Funnel limit reached (${limits.maxFunnels} on ${PLAN_LABEL[plan]})`}>
             <p>Upgrade to {plan === "starter" ? "Growth" : "Pro"} to create more funnels.</p>
-            <Button variant="plain" url={`/app/pricing${qs}`}>View plans →</Button>
+            <Button variant="plain" onClick={() => navigate(`/app/pricing${qs}`)}>View plans →</Button>
           </Banner>
         )}
         {atImpressionLimit && plan !== "pro" && (
           <Banner tone="critical" title="Monthly impression limit reached">
             <p>Your widgets are paused until next month or you upgrade. Upgrade to Growth for unlimited impressions.</p>
-            <Button variant="plain" url={`/app/pricing${qs}`}>Upgrade now →</Button>
+            <Button variant="plain" onClick={() => navigate(`/app/pricing${qs}`)}>Upgrade now →</Button>
           </Banner>
         )}
 

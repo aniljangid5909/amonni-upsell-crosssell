@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useNavigation, Form, useLoaderData } from "@remix-run/react";
+import { useNavigation, Form, useLoaderData, useNavigate } from "@remix-run/react";
 import { useState, useCallback } from "react";
 import {
   Page,
@@ -162,6 +162,7 @@ export default function NewFunnelPage() {
   const qs = params.toString() ? `?${params.toString()}` : "";
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const navigate = useNavigate();
 
   const atFunnelLimit = isFinite(limits.maxFunnels) && activeFunnelCount >= limits.maxFunnels;
   const atImpressionLimit = isFinite(limits.maxImpressionsPerMonth) && monthlyImpressions >= limits.maxImpressionsPerMonth;
@@ -247,7 +248,7 @@ export default function NewFunnelPage() {
             title={atFunnelLimit ? `Funnel limit reached on your ${plan} plan` : "Monthly impression limit reached"}
           >
             <p>{atFunnelLimit ? `You have ${activeFunnelCount}/${limits.maxFunnels} active funnels.` : `You've used ${monthlyImpressions}/${limits.maxImpressionsPerMonth} impressions this month.`} Upgrade to create more.</p>
-            <Button variant="plain" url={`/app/pricing${qs}`}>View plans →</Button>
+            <Button variant="plain" onClick={() => navigate(`/app/pricing${qs}`)}>View plans →</Button>
           </Banner>
         </div>
       )}
@@ -289,7 +290,7 @@ export default function NewFunnelPage() {
                       <span style={{ fontSize: "13px", color: "#7a5c00" }}>
                         🔒 <strong>{placementOptions.find(o => o.value === placement)?.label}</strong> is not available on your <strong>{plan}</strong> plan.
                       </span>
-                      <a href={`/app/pricing${qs}`} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px" }}>Upgrade →</a>
+                      <button onClick={() => navigate(`/app/pricing${qs}`)} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>Upgrade →</button>
                     </div>
                   )}
                   <Select
@@ -304,7 +305,7 @@ export default function NewFunnelPage() {
                       <span style={{ fontSize: "13px", color: "#7a5c00" }}>
                         🔒 <strong>{offerTypeOptions.find(o => o.value === offerType)?.label?.split(' —')[0]}</strong> offers are not available on your <strong>{plan}</strong> plan.
                       </span>
-                      <a href={`/app/pricing${qs}`} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px" }}>Upgrade →</a>
+                      <button onClick={() => navigate(`/app/pricing${qs}`)} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>Upgrade →</button>
                     </div>
                   )}
                   <TextField

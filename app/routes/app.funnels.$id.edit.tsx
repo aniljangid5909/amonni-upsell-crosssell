@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useNavigation, Form } from "@remix-run/react";
+import { useLoaderData, useNavigation, Form, useNavigate } from "@remix-run/react";
 import { useState, useCallback } from "react";
 import {
   Page,
@@ -146,6 +146,7 @@ export default function EditFunnelPage() {
   const qs = buildQs(shop, host);
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const navigate = useNavigate();
 
   const [discountType, setDiscountType] = useState(funnel.discountType);
   const [discountValue, setDiscountValue] = useState(funnel.discountValue ? String(funnel.discountValue) : "");
@@ -236,7 +237,7 @@ export default function EditFunnelPage() {
                       <span style={{ fontSize: "13px", color: "#7a5c00" }}>
                         🔒 <strong>{placementOptions.find(o => o.value === placement)?.label}</strong> is not available on your <strong>{plan}</strong> plan.
                       </span>
-                      <a href={`/app/pricing${qs}`} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px" }}>Upgrade →</a>
+                      <button onClick={() => navigate(`/app/pricing${qs}`)} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>Upgrade →</button>
                     </div>
                   )}
                   <Select label="Offer type" name="offerType" options={offerTypeOptions} value={offerType} onChange={(v) => { setOfferType(v); setWidgetTitle(''); }} />
@@ -245,7 +246,7 @@ export default function EditFunnelPage() {
                       <span style={{ fontSize: "13px", color: "#7a5c00" }}>
                         🔒 <strong>{offerTypeOptions.find(o => o.value === offerType)?.label?.split(' —')[0]}</strong> offers are not available on your <strong>{plan}</strong> plan.
                       </span>
-                      <a href={`/app/pricing${qs}`} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px" }}>Upgrade →</a>
+                      <button onClick={() => navigate(`/app/pricing${qs}`)} style={{ fontSize: "13px", fontWeight: 600, color: "#c07a00", textDecoration: "underline", whiteSpace: "nowrap", marginLeft: "12px", background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit" }}>Upgrade →</button>
                     </div>
                   )}
                   <TextField
