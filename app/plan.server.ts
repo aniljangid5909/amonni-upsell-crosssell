@@ -49,6 +49,10 @@ export const PLAN_LIMITS: Record<PlanId, {
 const planCache = new Map<string, { plan: PlanId; expiresAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+export function clearPlanCache(shop: string) {
+  planCache.delete(shop);
+}
+
 /**
  * Returns the current plan for a shop by checking Shopify active subscriptions.
  * Falls back to "starter" if no paid subscription found.

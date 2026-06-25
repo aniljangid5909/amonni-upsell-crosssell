@@ -2,8 +2,11 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation } from "@remix-run/react";
 import { useState } from "react";
-import { Page, Layout, Text, BlockStack, InlineStack, Badge, Button, Divider, Box } from "@shopify/polaris";
-import { authenticate, prisma } from "../shopify.server";
+import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
+import { authenticate } from "../shopify.server";
+import { clearPlanCache } from "../plan.server";
+
+const IS_TEST = process.env.NODE_ENV !== "production";
 
 // ── Plan definitions ──────────────────────────────────────────────────────────
 const PLANS = [
@@ -21,7 +24,7 @@ const PLANS = [
       "Basic analytics",
       "Email support",
     ],
-    limits: ["No cart drawer widget", "No bundle offers"],
+    limits: ["No cart drawer widget", "No bundle offers", "No upsell offers"],
     cta: "Current plan",
     highlight: false,
   },
@@ -36,14 +39,15 @@ const PLANS = [
       "10 active funnels",
       "Unlimited impressions",
       "Cross-sell, Upsell & Bundle",
-      "Product page + Cart drawer",
+      "Product page + Cart drawer + Post-purchase + Checkout",
       "Carousel & Grid display styles",
       "Custom widget titles",
       "Discount codes",
+      "7-day free trial",
       "Priority email support",
     ],
     limits: [],
-    cta: "Start Growth",
+    cta: "Start Growth – 7 days free",
     highlight: true,
   },
   {
@@ -56,15 +60,15 @@ const PLANS = [
     features: [
       "Unlimited funnels",
       "Unlimited impressions",
-      "All offer types",
-      "All placements",
+      "All offer types & placements",
       "Advanced analytics & reports",
       "A/B testing (coming soon)",
       "Remove 'Powered by Amoni' branding",
+      "7-day free trial",
       "Dedicated Slack support",
     ],
     limits: [],
-    cta: "Start Pro",
+    cta: "Start Pro – 7 days free",
     highlight: false,
   },
 ];
@@ -73,15 +77,23 @@ const PLANS = [
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
   const url = new URL(request.url);
+  const shop = session.shop;
 
-  // Check active app subscriptions via Admin GraphQL
+  // Clear cache when returning from billing confirmation so plan shows immediately
+  const fromBilling = url.searchParams.get("billing") === "1";
+  if (fromBilling) clearPlanCache(shop);
+
   let activePlan = "starter";
+  let activePlanName = "";
   let billingInterval = "monthly";
+  let activeSubscriptionId = "";
+
   try {
     const res = await admin.graphql(`
       query {
         currentAppInstallation {
           activeSubscriptions {
+            id
             name
             status
             lineItems {
@@ -102,7 +114,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const subs = body?.data?.currentAppInstallation?.activeSubscriptions || [];
     const active = subs.find((s: any) => s.status === "ACTIVE");
     if (active) {
-      const name = (active.name || "").toLowerCase();
+      activePlanName = active.name || "";
+      activeSubscriptionId = active.id || "";
+      const name = activePlanName.toLowerCase();
       if (name.includes("pro")) activePlan = "pro";
       else if (name.includes("growth")) activePlan = "growth";
       const interval = active.lineItems?.[0]?.plan?.pricingDetails?.interval || "EVERY_30_DAYS";
@@ -111,14 +125,18 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   } catch (_) {}
 
   return json({
-    shop: session.shop,
+    shop,
     host: url.searchParams.get("host") ?? "",
     activePlan,
+    activePlanName,
     billingInterval,
+    activeSubscriptionId,
+    fromBilling,
+    isTest: IS_TEST,
   });
 };
 
-// ── Action — create subscription ─────────────────────────────────────────────
+// ── Action — create or cancel subscription ───────────────────────────────────
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { admin, session } = await authenticate.admin(request);
   const url = new URL(request.url);
@@ -126,8 +144,30 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const shop = session.shop;
 
   const formData = await request.formData();
+  const _action = formData.get("_action") as string;
+
+  // Cancel subscription
+  if (_action === "cancel") {
+    const subscriptionId = formData.get("subscriptionId") as string;
+    if (subscriptionId) {
+      try {
+        await admin.graphql(`
+          mutation AppSubscriptionCancel($id: ID!) {
+            appSubscriptionCancel(id: $id) {
+              appSubscription { id status }
+              userErrors { field message }
+            }
+          }
+        `, { variables: { id: subscriptionId } });
+        clearPlanCache(shop);
+      } catch (_) {}
+    }
+    return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
+  }
+
+  // Create subscription
   const planId = formData.get("planId") as string;
-  const interval = formData.get("interval") as string; // "monthly" | "yearly"
+  const interval = formData.get("interval") as string;
 
   const plan = PLANS.find((p) => p.id === planId);
   if (!plan || plan.monthlyPrice === 0) {
@@ -138,11 +178,12 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const gqlInterval = interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS";
   const planName = `Amoni Upsell ${plan.name} (${interval === "yearly" ? "Yearly" : "Monthly"})`;
 
-  const returnUrl = `${process.env.SHOPIFY_APP_URL}/app/pricing?shop=${shop}&host=${host}`;
+  const appUrl = process.env.SHOPIFY_APP_URL || `https://${shop}`;
+  const returnUrl = `${appUrl}/app/pricing?shop=${shop}&host=${host}&billing=1`;
 
   const res = await admin.graphql(`
-    mutation AppSubscriptionCreate($name: String!, $returnUrl: URL!, $lineItems: [AppSubscriptionLineItemInput!]!) {
-      appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: true) {
+    mutation AppSubscriptionCreate($name: String!, $returnUrl: URL!, $lineItems: [AppSubscriptionLineItemInput!]!, $test: Boolean) {
+      appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test, trialDays: 7) {
         appSubscription { id status }
         confirmationUrl
         userErrors { field message }
@@ -152,6 +193,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     variables: {
       name: planName,
       returnUrl,
+      test: IS_TEST,
       lineItems: [{
         plan: {
           appRecurringPricingDetails: {
@@ -174,12 +216,13 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return redirect(confirmationUrl);
   }
 
-  return redirect(`/app/pricing?shop=${shop}&host=${host}`);
+  return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
 };
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 export default function PricingPage() {
-  const { shop, host, activePlan, billingInterval } = useLoaderData<typeof loader>();
+  const { shop, host, activePlan, activePlanName, billingInterval, activeSubscriptionId, fromBilling, isTest } =
+    useLoaderData<typeof loader>();
   const [interval, setInterval] = useState<"monthly" | "yearly">(
     billingInterval as "monthly" | "yearly"
   );
@@ -193,7 +236,12 @@ export default function PricingPage() {
   const qsStr = qs.toString() ? `?${qs.toString()}` : "";
 
   function handleSubscribe(planId: string) {
-    submit({ planId, interval }, { method: "post" });
+    submit({ _action: "subscribe", planId, interval }, { method: "post" });
+  }
+
+  function handleCancel() {
+    if (!confirm("Cancel your subscription? You'll be downgraded to the Starter plan.")) return;
+    submit({ _action: "cancel", subscriptionId: activeSubscriptionId }, { method: "post" });
   }
 
   const yearlyDiscount = Math.round((1 - 15.99 / 19.99) * 100);
@@ -205,6 +253,24 @@ export default function PricingPage() {
       subtitle="Choose the plan that fits your store. Upgrade or downgrade anytime."
     >
       <Layout>
+        {/* Success banner after billing */}
+        {fromBilling && activePlan !== "starter" && (
+          <Layout.Section>
+            <Banner tone="success" title={`${activePlanName} activated!`}>
+              <p>Your plan is now active. All {activePlan === "pro" ? "Pro" : "Growth"} features are unlocked.</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
+        {/* Test mode notice */}
+        {isTest && (
+          <Layout.Section>
+            <Banner tone="info" title="Test mode">
+              <p>Subscriptions are in test mode — no real charges will be made. Use Shopify&apos;s test credit card to approve.</p>
+            </Banner>
+          </Layout.Section>
+        )}
+
         {/* ── Billing toggle ── */}
         <Layout.Section>
           <div style={{ display: "flex", justifyContent: "center", paddingBottom: "8px" }}>
@@ -268,7 +334,7 @@ export default function PricingPage() {
                     border: plan.highlight ? "2px solid #1a1a1a" : "1px solid #e0e0e0",
                     borderRadius: "16px",
                     padding: "28px 24px",
-                    background: plan.highlight ? "#fafafa" : "#fff",
+                    background: isActive ? "#f8fff8" : plan.highlight ? "#fafafa" : "#fff",
                     position: "relative",
                     display: "flex",
                     flexDirection: "column",
@@ -293,20 +359,18 @@ export default function PricingPage() {
                     </div>
                   )}
 
-                  {/* Plan name + description */}
                   <BlockStack gap="100">
                     <Text variant="headingLg" as="h2">{plan.name}</Text>
                     <Text variant="bodySm" tone="subdued" as="p">{plan.description}</Text>
                   </BlockStack>
 
-                  {/* Price */}
                   <div style={{ margin: "20px 0" }}>
                     {isFree ? (
                       <Text variant="heading2xl" as="p">Free</Text>
                     ) : (
                       <InlineStack gap="100" blockAlign="end">
                         <Text variant="heading2xl" as="p">${price.toFixed(2)}</Text>
-                        <Text variant="bodySm" tone="subdued" as="p" >
+                        <Text variant="bodySm" tone="subdued" as="p">
                           / mo{interval === "yearly" ? ", billed yearly" : ""}
                         </Text>
                       </InlineStack>
@@ -320,7 +384,6 @@ export default function PricingPage() {
 
                   <Divider />
 
-                  {/* Features */}
                   <div style={{ margin: "20px 0", flex: 1 }}>
                     <BlockStack gap="200">
                       {plan.features.map((f) => (
@@ -338,26 +401,47 @@ export default function PricingPage() {
                     </BlockStack>
                   </div>
 
-                  {/* CTA */}
-                  <div style={{ marginTop: "auto" }}>
+                  <div style={{ marginTop: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
                     {isActive ? (
-                      <button
-                        disabled
-                        style={{
-                          width: "100%",
-                          padding: "12px",
-                          borderRadius: "10px",
-                          border: "1px solid #e0e0e0",
-                          background: "#f5f5f5",
-                          color: "#888",
-                          fontWeight: 600,
-                          fontSize: "14px",
-                          cursor: "default",
-                          fontFamily: "inherit",
-                        }}
-                      >
-                        ✓ Current plan
-                      </button>
+                      <>
+                        <button
+                          disabled
+                          style={{
+                            width: "100%",
+                            padding: "12px",
+                            borderRadius: "10px",
+                            border: "2px solid #0c7a3e",
+                            background: "#f0fff4",
+                            color: "#0c7a3e",
+                            fontWeight: 700,
+                            fontSize: "14px",
+                            cursor: "default",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          ✓ Current plan
+                        </button>
+                        {!isFree && activeSubscriptionId && (
+                          <button
+                            onClick={handleCancel}
+                            disabled={loading}
+                            style={{
+                              width: "100%",
+                              padding: "8px",
+                              borderRadius: "10px",
+                              border: "1px solid #e0e0e0",
+                              background: "transparent",
+                              color: "#888",
+                              fontWeight: 500,
+                              fontSize: "12px",
+                              cursor: loading ? "wait" : "pointer",
+                              fontFamily: "inherit",
+                            }}
+                          >
+                            Cancel subscription
+                          </button>
+                        )}
+                      </>
                     ) : isFree ? (
                       <button
                         disabled
@@ -385,8 +469,8 @@ export default function PricingPage() {
                           padding: "12px",
                           borderRadius: "10px",
                           border: "none",
-                          background: plan.highlight ? "#1a1a1a" : "#f0f0f0",
-                          color: plan.highlight ? "#fff" : "#1a1a1a",
+                          background: plan.highlight ? "#1a1a1a" : "#333",
+                          color: "#fff",
                           fontWeight: 700,
                           fontSize: "14px",
                           cursor: loading ? "wait" : "pointer",
@@ -403,16 +487,60 @@ export default function PricingPage() {
           </div>
         </Layout.Section>
 
+        {/* ── Feature comparison ── */}
+        <Layout.Section>
+          <Box background="bg-surface" borderRadius="300" padding="400" borderWidth="025" borderColor="border">
+            <BlockStack gap="300">
+              <Text variant="headingSm" as="h3">Feature comparison</Text>
+              <div style={{ overflowX: "auto" }}>
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+                  <thead>
+                    <tr style={{ borderBottom: "2px solid #e0e0e0" }}>
+                      <th style={{ textAlign: "left", padding: "8px 12px", fontWeight: 700 }}>Feature</th>
+                      <th style={{ textAlign: "center", padding: "8px 12px", fontWeight: 700 }}>Starter</th>
+                      <th style={{ textAlign: "center", padding: "8px 12px", fontWeight: 700, color: activePlan === "growth" ? "#0c7a3e" : undefined }}>Growth</th>
+                      <th style={{ textAlign: "center", padding: "8px 12px", fontWeight: 700, color: activePlan === "pro" ? "#0c7a3e" : undefined }}>Pro</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      ["Active funnels", "1", "10", "Unlimited"],
+                      ["Impressions/month", "100", "Unlimited", "Unlimited"],
+                      ["Placements", "Product page", "All 4", "All 4"],
+                      ["Offer types", "Cross-sell", "All 3", "All 3"],
+                      ["Cart drawer widget", "✕", "✓", "✓"],
+                      ["Display styles", "✕", "✓", "✓"],
+                      ["Discount codes", "✕", "✓", "✓"],
+                      ["Custom widget titles", "✕", "✓", "✓"],
+                      ["Analytics", "Basic", "Standard", "Advanced"],
+                      ["Support", "Email", "Priority email", "Dedicated Slack"],
+                    ].map(([feature, starter, growth, pro]) => (
+                      <tr key={feature} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                        <td style={{ padding: "8px 12px" }}>{feature}</td>
+                        <td style={{ textAlign: "center", padding: "8px 12px", color: starter === "✕" ? "#ccc" : undefined }}>{starter}</td>
+                        <td style={{ textAlign: "center", padding: "8px 12px", color: growth === "✕" ? "#ccc" : "#0c7a3e", fontWeight: growth !== "✕" && growth !== starter ? 600 : undefined }}>{growth}</td>
+                        <td style={{ textAlign: "center", padding: "8px 12px", color: pro === "✕" ? "#ccc" : "#0c7a3e", fontWeight: pro !== "✕" && pro !== starter ? 600 : undefined }}>{pro}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </BlockStack>
+          </Box>
+        </Layout.Section>
+
         {/* ── Footer note ── */}
         <Layout.Section>
           <Box paddingBlock="400">
             <BlockStack gap="200" inlineAlign="center">
               <Text variant="bodySm" tone="subdued" as="p" alignment="center">
-                All plans include a 7-day free trial. Cancel anytime. Payments processed securely by Shopify.
+                All paid plans include a 7-day free trial. Cancel anytime. Payments processed securely by Shopify.
               </Text>
-              <Text variant="bodySm" tone="subdued" as="p" alignment="center">
-                Subscriptions are in test mode during development. Real charges apply in production.
-              </Text>
+              {isTest && (
+                <Text variant="bodySm" tone="subdued" as="p" alignment="center">
+                  Test mode active — use Shopify test card (4242 4242 4242 4242) to approve subscriptions.
+                </Text>
+              )}
             </BlockStack>
           </Box>
         </Layout.Section>
