@@ -561,11 +561,19 @@ export default function PricingPage() {
                       key={p}
                       type="button"
                       onClick={() => {
+                        console.log("[DEV OVERRIDE] Clicking plan:", p, "shop:", shop);
                         fetch("/api/dev-override", {
                           method: "POST",
                           headers: { "Content-Type": "application/json" },
                           body: JSON.stringify({ shop, plan: p }),
-                        }).then(() => window.location.reload());
+                        })
+                          .then(async (res) => {
+                            const data = await res.json();
+                            console.log("[DEV OVERRIDE] Response:", res.status, data);
+                            if (data.ok) window.location.reload();
+                            else console.error("[DEV OVERRIDE] Failed:", data.error);
+                          })
+                          .catch((err) => console.error("[DEV OVERRIDE] Fetch error:", err));
                       }}
                       style={{
                         padding: "8px 18px",
