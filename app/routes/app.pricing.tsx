@@ -4,7 +4,7 @@ import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate } f
 import { useState, useEffect } from "react";
 import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
-import { clearPlanCache } from "../plan.server";
+import { clearPlanCache, setPlanOverride } from "../plan.server";
 
 const IS_TEST = process.env.NODE_ENV !== "production";
 
@@ -145,6 +145,15 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const formData = await request.formData();
   const _action = formData.get("_action") as string;
+
+  // Dev override — bypass billing for local testing
+  if (_action === "dev_override" && IS_TEST) {
+    const overridePlan = formData.get("overridePlan") as string;
+    if (overridePlan === "growth" || overridePlan === "pro" || overridePlan === "starter") {
+      setPlanOverride(shop, overridePlan);
+    }
+    return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
+  }
 
   // Cancel subscription
   if (_action === "cancel") {
@@ -520,6 +529,43 @@ export default function PricingPage() {
           </Box>
         </Layout.Section>
 
+        {/* ── Dev override (development only) ── */}
+        {isTest && (
+          <Layout.Section>
+            <Box background="bg-surface-warning" borderRadius="300" padding="400" borderWidth="025" borderColor="border-warning">
+              <BlockStack gap="300">
+                <Text variant="headingSm" as="h3">🛠 Developer testing — bypass Shopify billing</Text>
+                <Text variant="bodySm" tone="subdued" as="p">
+                  If the Billing API is blocked (403), use these buttons to simulate a plan upgrade locally for testing.
+                  This sets the plan in the server cache only — no real charge.
+                </Text>
+                <InlineStack gap="300">
+                  {(["starter", "growth", "pro"] as const).map((p) => (
+                    <button
+                      key={p}
+                      onClick={() => submit({ _action: "dev_override", overridePlan: p }, { method: "post" })}
+                      disabled={loading}
+                      style={{
+                        padding: "8px 18px",
+                        borderRadius: "8px",
+                        border: activePlan === p ? "2px solid #0c7a3e" : "1px solid #ccc",
+                        background: activePlan === p ? "#f0fff4" : "#fff",
+                        color: activePlan === p ? "#0c7a3e" : "#333",
+                        fontWeight: 600,
+                        fontSize: "13px",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {activePlan === p ? "✓ " : ""}{p.charAt(0).toUpperCase() + p.slice(1)}
+                    </button>
+                  ))}
+                </InlineStack>
+              </BlockStack>
+            </Box>
+          </Layout.Section>
+        )}
+
         {/* ── Footer note ── */}
         <Layout.Section>
           <Box paddingBlock="400">
@@ -527,11 +573,6 @@ export default function PricingPage() {
               <Text variant="bodySm" tone="subdued" as="p" alignment="center">
                 All paid plans include a 7-day free trial. Cancel anytime. Payments processed securely by Shopify.
               </Text>
-              {isTest && (
-                <Text variant="bodySm" tone="subdued" as="p" alignment="center">
-                  Test mode active — use Shopify test card (4242 4242 4242 4242) to approve subscriptions.
-                </Text>
-              )}
             </BlockStack>
           </Box>
         </Layout.Section>

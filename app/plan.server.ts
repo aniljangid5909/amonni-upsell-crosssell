@@ -53,6 +53,11 @@ export function clearPlanCache(shop: string) {
   planCache.delete(shop);
 }
 
+/** Dev-only: force a plan for testing without real billing */
+export function setPlanOverride(shop: string, plan: PlanId) {
+  planCache.set(shop, { plan, expiresAt: Date.now() + 24 * 60 * 60 * 1000 }); // 24h
+}
+
 /**
  * Returns the current plan for a shop by checking Shopify active subscriptions.
  * Falls back to "starter" if no paid subscription found.
