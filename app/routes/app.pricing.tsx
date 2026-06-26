@@ -219,6 +219,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const errDetail = body?.errors ? JSON.stringify(body.errors) : `HTTP ${gqlRes.status}`;
     return json({ error: `Billing error: ${errDetail}`, confirmationUrl: null });
   } catch (err: any) {
+    if (err instanceof Response) {
+      const text = await err.text().catch(() => "");
+      return json({ error: `Billing error: HTTP ${err.status} — ${text || "no details"}`, confirmationUrl: null });
+    }
     return json({ error: `Billing error: ${err?.message || String(err)}`, confirmationUrl: null });
   }
 };
