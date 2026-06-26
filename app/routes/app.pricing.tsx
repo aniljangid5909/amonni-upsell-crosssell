@@ -1,6 +1,6 @@
 import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
-import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate } from "@remix-run/react";
+import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useEffect } from "react";
 import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
@@ -230,19 +230,27 @@ export default function PricingPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const actionData = useActionData<{ confirmationUrl: string | null; error: string | null }>();
+  const billingFetcher = useFetcher<{ confirmationUrl: string | null; error: string | null }>();
   const [subError, setSubError] = useState<string | null>(null);
-  const loading = navigation.state !== "idle";
+  const loading = navigation.state !== "idle" || billingFetcher.state !== "idle";
 
   const qs = new URLSearchParams();
   if (shop) qs.set("shop", shop);
   if (host) qs.set("host", host);
   const qsStr = qs.toString() ? `?${qs.toString()}` : "";
 
+  useEffect(() => {
+    if (billingFetcher.data?.confirmationUrl) {
+      window.top!.location.href = billingFetcher.data.confirmationUrl;
+    } else if (billingFetcher.data?.error) {
+      setSubError(billingFetcher.data.error);
+    }
+  }, [billingFetcher.data]);
+
   function handleSubscribe(planId: string) {
-    // Navigate within the embedded iframe — keeps the Shopify session context so
-    // authenticate.admin() works and billing.request() can redirect to the
-    // Shopify payment approval page via App Bridge.
-    navigate(`/app/billing?plan=${planId}&interval=${interval}&shop=${shop}&host=${host}`);
+    // useFetcher.load() goes through App Bridge's patched fetch, adding the
+    // Shopify session JWT header → enables token exchange → fresh online token.
+    billingFetcher.load(`/app/billing?plan=${planId}&interval=${interval}&shop=${shop}&host=${host}`);
   }
 
   function handleCancel() {

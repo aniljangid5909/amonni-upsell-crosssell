@@ -21,36 +21,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ error: "Invalid plan", confirmationUrl: null, host });
   }
 
-  const { session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const returnUrl = `${url.origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
-
-  // Use the online session token from token exchange — it's fresh and expiring.
-  // The offline token in DB is non-expiring (old) and Shopify rejects it.
-  const accessToken = session.accessToken;
-  const sessionMeta = `isOnline:${session.isOnline} expires:${(session as any).expires} prefix:${accessToken?.slice(0, 8)}`;
 
   const price = planId === "pro"
     ? (interval === "yearly" ? 479.88 : 49.99)
     : (interval === "yearly" ? 191.88 : 19.99);
 
   try {
-    const res = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Shopify-Access-Token": accessToken,
-      },
-      body: JSON.stringify({
-        query: `
-          mutation appSubscriptionCreate($name: String!, $returnUrl: URL!, $test: Boolean, $lineItems: [AppSubscriptionLineItemInput!]!) {
-            appSubscriptionCreate(name: $name, returnUrl: $returnUrl, test: $test, lineItems: $lineItems) {
-              appSubscription { id }
-              confirmationUrl
-              userErrors { field message }
-            }
-          }
-        `,
+    const res = await admin.graphql(
+      `#graphql
+      mutation appSubscriptionCreate($name: String!, $returnUrl: URL!, $test: Boolean, $lineItems: [AppSubscriptionLineItemInput!]!) {
+        appSubscriptionCreate(name: $name, returnUrl: $returnUrl, test: $test, lineItems: $lineItems) {
+          appSubscription { id }
+          confirmationUrl
+          userErrors { field message }
+        }
+      }`,
+      {
         variables: {
           name: planName,
           returnUrl,
@@ -63,14 +52,9 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
               }
             }
           }],
-        },
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text();
-      return json({ error: `HTTP ${res.status}: ${text.slice(0, 400)} | ${sessionMeta}`, confirmationUrl: null, host });
-    }
+        }
+      }
+    );
 
     const body = await res.json();
     const result = body?.data?.appSubscriptionCreate;
@@ -80,13 +64,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     }
 
     const confirmationUrl = result?.confirmationUrl;
-    if (confirmationUrl) {
-      return json({ confirmationUrl, error: null, host });
-    }
+    if (confirmationUrl) return json({ confirmationUrl, error: null, host });
 
-    return json({ error: `No URL. body: ${JSON.stringify(body).slice(0, 400)}`, confirmationUrl: null, host });
+    return json({ error: `No URL. isOnline:${session.isOnline} body:${JSON.stringify(body).slice(0, 300)}`, confirmationUrl: null, host });
   } catch (err: any) {
-    return json({ error: err?.message || String(err), confirmationUrl: null, host });
+    if (err instanceof Response) {
+      const text = await err.text().catch(() => "");
+      return json({ error: `HTTP ${err.status} isOnline:${session.isOnline}: ${text.slice(0, 300)}`, confirmationUrl: null, host });
+    }
+    return json({ error: `${err?.message || String(err)} | isOnline:${session.isOnline}`, confirmationUrl: null, host });
   }
 };
 
