@@ -249,15 +249,26 @@ export default function PricingPage() {
 
   async function handleSubscribe(planId: string) {
     setSubError(null);
-    // Manually get the App Bridge session JWT and send it in the Authorization
-    // header so authenticate.admin() can do token exchange → fresh online token.
-    const idToken = await (window as any).shopify?.idToken?.().catch(() => null);
-    const headers: Record<string, string> = {};
+    let idToken: string | null = null;
+    try {
+      const shopify = (window as any).shopify;
+      if (typeof shopify?.idToken === "function") {
+        idToken = await shopify.idToken();
+      }
+    } catch (_) {}
+
+    const headers: Record<string, string> = { "X-Shopify-Client": "1" };
     if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
 
     const url = `/app/billing?plan=${planId}&interval=${interval}&shop=${shop}&host=${host}`;
     try {
       const res = await fetch(url, { headers });
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("json")) {
+        // Got HTML (OAuth redirect) — session needs refresh
+        setSubError(`Session redirect (${res.status}). idToken was ${idToken ? "present" : "missing"}. Please refresh the page and try again.`);
+        return;
+      }
       const data = await res.json();
       if (data?.confirmationUrl) {
         window.top!.location.href = data.confirmationUrl;

@@ -21,6 +21,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ error: "Invalid plan", confirmationUrl: null, host });
   }
 
+  const authHeader = request.headers.get("Authorization");
   const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const returnUrl = `${url.origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
@@ -66,13 +67,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const confirmationUrl = result?.confirmationUrl;
     if (confirmationUrl) return json({ confirmationUrl, error: null, host });
 
-    return json({ error: `No URL. isOnline:${session.isOnline} body:${JSON.stringify(body).slice(0, 300)}`, confirmationUrl: null, host });
+    return json({ error: `No URL. isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"} body:${JSON.stringify(body).slice(0, 300)}`, confirmationUrl: null, host });
   } catch (err: any) {
     if (err instanceof Response) {
       const text = await err.text().catch(() => "");
-      return json({ error: `HTTP ${err.status} isOnline:${session.isOnline}: ${text.slice(0, 300)}`, confirmationUrl: null, host });
+      return json({ error: `HTTP ${err.status} isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"}: ${text.slice(0, 300)}`, confirmationUrl: null, host });
     }
-    return json({ error: `${err?.message || String(err)} | isOnline:${session.isOnline}`, confirmationUrl: null, host });
+    return json({ error: `${err?.message || String(err)} | isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"}`, confirmationUrl: null, host });
   }
 };
 
