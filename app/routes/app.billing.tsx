@@ -24,15 +24,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const host = url.searchParams.get("host") ?? "";
   const returnUrl = `${url.origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
 
-  // billing.request() throws a redirect to Shopify's billing confirmation page.
-  // We let it propagate — Remix will follow it and the browser will land on
-  // Shopify's payment approval screen.
-  await billing.request({
-    plan: planName as any,
-    isTest: IS_TEST,
-    returnUrl,
-  });
+  try {
+    await billing.request({
+      plan: planName as any,
+      isTest: IS_TEST,
+      returnUrl,
+    });
+  } catch (err: any) {
+    // A redirect Response IS the success path — re-throw so Remix follows it
+    if (err instanceof Response) throw err;
+    // Any other error — show details so we can debug
+    const msg = err?.message || JSON.stringify(err) || "unknown error";
+    return new Response(
+      `<html><body style="font-family:monospace;padding:32px">
+        <h2>Billing error</h2><pre>${msg}</pre>
+        <p>Plan: ${planName} | Test: ${IS_TEST} | Shop: ${shop}</p>
+      </body></html>`,
+      { status: 500, headers: { "Content-Type": "text/html" } }
+    );
+  }
 
-  // Should not reach here
-  return new Response("Billing redirect failed", { status: 500 });
+  return new Response("Billing redirect did not occur", { status: 500 });
 };
