@@ -18,8 +18,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const planId = url.searchParams.get("plan") ?? "";
   const interval = url.searchParams.get("interval") ?? "monthly";
   const host = url.searchParams.get("host") ?? "";
-  // Detect our custom fetch (not a Remix page navigation) — return raw JSON
-  const isApiFetch = request.headers.get("X-Shopify-Client") === "1";
+  // Detect our API fetch via query param (headers can be stripped by edge proxies)
+  const isApiFetch = url.searchParams.get("_api") === "1";
 
   const planNames: Record<string, string> = {
     growth: interval === "yearly" ? "Amoni Upsell Growth (Yearly)" : "Amoni Upsell Growth (Monthly)",
@@ -30,17 +30,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return isApiFetch ? apiJson({ error: "Invalid plan", confirmationUrl: null, host }) : json({ error: "Invalid plan", confirmationUrl: null, host });
   }
 
-  const authHeader = request.headers.get("Authorization");
   const shop = url.searchParams.get("shop") ?? "";
+  const sessionJwt = url.searchParams.get("token") ?? "";
 
   const price = planId === "pro"
     ? (interval === "yearly" ? 479.88 : 49.99)
     : (interval === "yearly" ? 191.88 : 19.99);
 
-  // For API fetches: manually exchange the session JWT for an online access token.
-  // This bypasses authenticate.admin() which keeps redirecting to OAuth.
-  if (isApiFetch && authHeader?.startsWith("Bearer ") && shop) {
-    const sessionJwt = authHeader.slice(7);
+  // API path: token and _api=1 both present — do manual token exchange
+  if (isApiFetch && sessionJwt && shop) {
     let accessToken: string | null = null;
 
     try {

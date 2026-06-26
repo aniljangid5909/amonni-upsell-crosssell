@@ -257,16 +257,16 @@ export default function PricingPage() {
       }
     } catch (_) {}
 
-    const headers: Record<string, string> = { "X-Shopify-Client": "1" };
-    if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
-
-    const url = `/app/billing?plan=${planId}&interval=${interval}&shop=${shop}&host=${host}`;
+    // Pass everything as query params — avoids header stripping by edge proxies
+    const params = new URLSearchParams({
+      plan: planId, interval, shop, host, _api: "1",
+      ...(idToken ? { token: idToken } : {}),
+    });
     try {
-      const res = await fetch(url, { headers });
+      const res = await fetch(`/app/billing?${params.toString()}`);
       const ct = res.headers.get("content-type") || "";
       if (!ct.includes("json")) {
-        // Got HTML (OAuth redirect) — session needs refresh
-        setSubError(`Session redirect (${res.status}). idToken was ${idToken ? "present" : "missing"}. Please refresh the page and try again.`);
+        setSubError(`Auth redirect (${res.status}, idToken:${idToken ? "yes" : "no"}). Try refreshing.`);
         return;
       }
       const data = await res.json();
