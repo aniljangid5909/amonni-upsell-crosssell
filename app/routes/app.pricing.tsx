@@ -176,13 +176,51 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const planName = `Amoni Upsell ${plan.name} (${interval === "yearly" ? "Yearly" : "Monthly"})` as const;
 
+  const origin = new URL(request.url).origin;
+  const returnUrl = `${origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
+  const lineItems = [{
+    plan: {
+      appRecurringPricingDetails: {
+        price: { amount: interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice, currencyCode: "USD" },
+        interval: interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS",
+      }
+    }
+  }];
+
   try {
-    await billing.request({ plan: planName, isTest: IS_TEST, returnObject: false });
+    // Try adapter billing first (handles token + redirect automatically)
+    const result = await billing.request({ plan: planName, isTest: IS_TEST, returnObject: true });
+    const confirmationUrl = (result as any)?.confirmationUrl ?? null;
+    if (confirmationUrl) return json({ confirmationUrl, error: null });
     return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
-  } catch (err: any) {
-    if (err instanceof Response) throw err;
-    const msg = err?.message || String(err);
-    return json({ error: `Billing error: ${msg}`, confirmationUrl: null });
+  } catch (adapterErr: any) {
+    if (adapterErr instanceof Response) {
+      const location = (adapterErr as Response).headers.get("Location");
+      if (location) return json({ confirmationUrl: location, error: null });
+    }
+    // Fallback: raw GraphQL mutation — gives us the confirmationUrl directly
+    try {
+      const res = await admin.graphql(`
+        mutation AppSubscriptionCreate($name: String!, $returnUrl: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $test: Boolean) {
+          appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test) {
+            appSubscription { id }
+            confirmationUrl
+            userErrors { field message }
+          }
+        }
+      `, { variables: { name: planName, returnUrl, lineItems, test: IS_TEST } });
+      const body = await res.json();
+      const data = body?.data?.appSubscriptionCreate;
+      if (data?.userErrors?.length) {
+        return json({ error: data.userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null });
+      }
+      if (data?.confirmationUrl) {
+        return json({ confirmationUrl: data.confirmationUrl, error: null });
+      }
+      return json({ error: `Could not start subscription. Adapter: ${adapterErr?.message || adapterErr}`, confirmationUrl: null });
+    } catch (gqlErr: any) {
+      return json({ error: `Billing error: ${adapterErr?.message || adapterErr}`, confirmationUrl: null });
+    }
   }
 };
 
