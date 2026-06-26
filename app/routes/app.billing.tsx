@@ -6,11 +6,20 @@ import { authenticate } from "../shopify.server";
 
 const IS_TEST = process.env.SHOPIFY_BILLING_TEST !== "false";
 
+// Helper: return JSON directly (bypasses Remix's HTML render for API-style fetches)
+const apiJson = (data: object, status = 200) =>
+  new Response(JSON.stringify(data), {
+    status,
+    headers: { "Content-Type": "application/json" },
+  });
+
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const planId = url.searchParams.get("plan") ?? "";
   const interval = url.searchParams.get("interval") ?? "monthly";
   const host = url.searchParams.get("host") ?? "";
+  // Detect our custom fetch (not a Remix page navigation) — return raw JSON
+  const isApiFetch = request.headers.get("X-Shopify-Client") === "1";
 
   const planNames: Record<string, string> = {
     growth: interval === "yearly" ? "Amoni Upsell Growth (Yearly)" : "Amoni Upsell Growth (Monthly)",
@@ -18,7 +27,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
   const planName = planNames[planId];
   if (!planName) {
-    return json({ error: "Invalid plan", confirmationUrl: null, host });
+    return isApiFetch ? apiJson({ error: "Invalid plan", confirmationUrl: null, host }) : json({ error: "Invalid plan", confirmationUrl: null, host });
   }
 
   const authHeader = request.headers.get("Authorization");
@@ -61,19 +70,21 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const result = body?.data?.appSubscriptionCreate;
 
     if (result?.userErrors?.length) {
-      return json({ error: result.userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null, host });
+      return isApiFetch ? apiJson({ error: result.userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null, host }) : json({ error: result.userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null, host });
     }
 
     const confirmationUrl = result?.confirmationUrl;
-    if (confirmationUrl) return json({ confirmationUrl, error: null, host });
+    const R = (d: object) => isApiFetch ? apiJson(d) : json(d);
+    if (confirmationUrl) return R({ confirmationUrl, error: null, host });
 
-    return json({ error: `No URL. isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"} body:${JSON.stringify(body).slice(0, 300)}`, confirmationUrl: null, host });
+    return R({ error: `No URL. isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"} body:${JSON.stringify(body).slice(0, 300)}`, confirmationUrl: null, host });
   } catch (err: any) {
+    const R = (d: object) => isApiFetch ? apiJson(d) : json(d);
     if (err instanceof Response) {
       const text = await err.text().catch(() => "");
-      return json({ error: `HTTP ${err.status} isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"}: ${text.slice(0, 300)}`, confirmationUrl: null, host });
+      return R({ error: `HTTP ${err.status} isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"}: ${text.slice(0, 300)}`, confirmationUrl: null, host });
     }
-    return json({ error: `${err?.message || String(err)} | isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"}`, confirmationUrl: null, host });
+    return R({ error: `${err?.message || String(err)} | isOnline:${session.isOnline} authHeader:${authHeader ? "yes" : "no"}`, confirmationUrl: null, host });
   }
 };
 
