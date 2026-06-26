@@ -4,9 +4,10 @@ import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate } f
 import { useState, useEffect } from "react";
 import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
-import { clearPlanCache, setPlanOverride } from "../plan.server";
+import { clearPlanCache } from "../plan.server";
 
-const IS_TEST = process.env.NODE_ENV !== "production";
+// isTest = true enables Shopify's bogus gateway so no real charges occur during testing
+const IS_TEST = process.env.SHOPIFY_BILLING_TEST !== "false";
 
 // ── Plan definitions ──────────────────────────────────────────────────────────
 const PLANS = [
@@ -20,11 +21,11 @@ const PLANS = [
     features: [
       "1 active funnel",
       "Up to 100 impressions/month",
-      "Cross-sell on product page",
+      "Cross-sell & Upsell on product page",
       "Basic analytics",
       "Email support",
     ],
-    limits: ["No cart drawer widget", "No bundle offers", "No upsell offers"],
+    limits: ["No cart drawer widget", "No bundle offers", "No discount codes"],
     cta: "Current plan",
     highlight: false,
   },
@@ -133,40 +134,15 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     activeSubscriptionId,
     fromBilling,
     isTest: IS_TEST,
-    showDevPanel: process.env.DISABLE_DEV_OVERRIDE !== "true",
   });
 };
 
 // ── Action — create or cancel subscription ───────────────────────────────────
 export const action = async ({ request }: ActionFunctionArgs) => {
-  // Clone request so we can read formData before authenticate (which consumes the body)
-  const cloned = request.clone();
-  const preFormData = await cloned.formData();
-  const _actionPre = preFormData.get("_action") as string;
-  const url = new URL(request.url);
-  const host = url.searchParams.get("host") ?? "";
-
-  // Dev override runs BEFORE authenticate.admin so it never triggers a redirect
-  if (_actionPre === "dev_override" && process.env.DISABLE_DEV_OVERRIDE !== "true") {
-    const overridePlan = preFormData.get("overridePlan") as string;
-    const shop = preFormData.get("shop") as string || url.searchParams.get("shop") || "";
-    if ((overridePlan === "growth" || overridePlan === "pro" || overridePlan === "starter") && shop) {
-      setPlanOverride(shop, overridePlan as any);
-      // Also persist to DB so it survives serverless restarts
-      try {
-        const { prisma } = await import("../shopify.server");
-        await prisma.session.upsert({
-          where: { id: `__dev_plan_${shop}` },
-          create: { id: `__dev_plan_${shop}`, shop, state: overridePlan, isOnline: false },
-          update: { state: overridePlan },
-        });
-      } catch (_) {}
-    }
-    return json({ ok: true, plan: overridePlan });
-  }
-
   const { admin, billing, session } = await authenticate.admin(request);
   const shop = session.shop;
+  const url = new URL(request.url);
+  const host = url.searchParams.get("host") ?? "";
   const formData = await request.formData();
   const _action = formData.get("_action") as string;
 
@@ -189,7 +165,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
   }
 
-  // Create subscription using the adapter's built-in billing API
+  // Create subscription — Shopify billing redirects to confirmation page
   const planId = formData.get("planId") as string;
   const interval = formData.get("interval") as string;
 
@@ -201,15 +177,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const planName = `Amoni Upsell ${plan.name} (${interval === "yearly" ? "Yearly" : "Monthly"})` as const;
 
   try {
-    // billing.request() redirects to Shopify's billing confirmation page automatically
     await billing.request({ plan: planName, isTest: IS_TEST, returnObject: false });
-    // If we get here, the redirect was somehow skipped — fall through to home
     return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
   } catch (err: any) {
-    if (err instanceof Response) {
-      // This is a redirect thrown by billing.request — let Remix/App Bridge handle it
-      throw err;
-    }
+    if (err instanceof Response) throw err;
     const msg = err?.message || String(err);
     return json({ error: `Billing error: ${msg}`, confirmationUrl: null });
   }
@@ -217,7 +188,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
 // ── UI ────────────────────────────────────────────────────────────────────────
 export default function PricingPage() {
-  const { shop, host, activePlan, activePlanName, billingInterval, activeSubscriptionId, fromBilling, isTest, showDevPanel } =
+  const { shop, host, activePlan, activePlanName, billingInterval, activeSubscriptionId, fromBilling, isTest } =
     useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const [interval, setInterval] = useState<"monthly" | "yearly">(
@@ -228,8 +199,6 @@ export default function PricingPage() {
   const actionData = useActionData<{ confirmationUrl: string | null; error: string | null }>();
   const loading = navigation.state === "submitting";
 
-  // When Shopify returns a billing confirmation URL, do a top-level redirect
-  // (window.top breaks out of the embedded app iframe to Shopify's billing page)
   useEffect(() => {
     if (actionData?.confirmationUrl) {
       window.top!.location.href = actionData.confirmationUrl;
@@ -249,7 +218,6 @@ export default function PricingPage() {
     if (!confirm("Cancel your subscription? You'll be downgraded to the Starter plan.")) return;
     submit({ _action: "cancel", subscriptionId: activeSubscriptionId }, { method: "post" });
   }
-
 
   const yearlyDiscount = Math.round((1 - 15.99 / 19.99) * 100);
 
@@ -281,8 +249,8 @@ export default function PricingPage() {
         {/* Test mode notice */}
         {isTest && (
           <Layout.Section>
-            <Banner tone="info" title="Test mode">
-              <p>Subscriptions are in test mode — no real charges will be made. Use Shopify&apos;s test credit card to approve.</p>
+            <Banner tone="info" title="Test mode active">
+              <p>Payments use Shopify&apos;s bogus gateway — no real charges will be made. Enter any test card details to approve.</p>
             </Banner>
           </Layout.Section>
         )}
@@ -493,7 +461,7 @@ export default function PricingPage() {
                           fontFamily: "inherit",
                         }}
                       >
-                        {loading ? "Redirecting..." : plan.cta}
+                        {loading ? "Redirecting to Shopify..." : plan.cta}
                       </button>
                     )}
                   </div>
@@ -523,7 +491,7 @@ export default function PricingPage() {
                       ["Active funnels", "1", "10", "Unlimited"],
                       ["Impressions/month", "100", "Unlimited", "Unlimited"],
                       ["Placements", "Product page", "All 4", "All 4"],
-                      ["Offer types", "Cross-sell", "All 3", "All 3"],
+                      ["Offer types", "Cross-sell & Upsell", "All 3", "All 3"],
                       ["Cart drawer widget", "✕", "✓", "✓"],
                       ["Display styles", "✕", "✓", "✓"],
                       ["Discount codes", "✕", "✓", "✓"],
@@ -544,57 +512,6 @@ export default function PricingPage() {
             </BlockStack>
           </Box>
         </Layout.Section>
-
-        {/* ── Dev override (hide by setting DISABLE_DEV_OVERRIDE=true in env) ── */}
-        {showDevPanel && (
-          <Layout.Section>
-            <Box background="bg-surface-warning" borderRadius="300" padding="400" borderWidth="025" borderColor="border-warning">
-              <BlockStack gap="300">
-                <Text variant="headingSm" as="h3">🛠 Developer testing — bypass Shopify billing</Text>
-                <Text variant="bodySm" tone="subdued" as="p">
-                  If the Billing API is blocked (403), use these buttons to simulate a plan upgrade locally for testing.
-                  This sets the plan in the server cache only — no real charge.
-                </Text>
-                <InlineStack gap="300">
-                  {(["starter", "growth", "pro"] as const).map((p) => (
-                    <button
-                      key={p}
-                      type="button"
-                      onClick={() => {
-                        console.log("[DEV OVERRIDE] Clicking plan:", p, "shop:", shop);
-                        fetch("/api/dev-override", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({ shop, plan: p }),
-                        })
-                          .then(async (res) => {
-                            const data = await res.json();
-                            console.log("[DEV OVERRIDE] Response:", res.status, data);
-                            if (data.ok) window.location.reload();
-                            else console.error("[DEV OVERRIDE] Failed:", data.error);
-                          })
-                          .catch((err) => console.error("[DEV OVERRIDE] Fetch error:", err));
-                      }}
-                      style={{
-                        padding: "8px 18px",
-                        borderRadius: "8px",
-                        border: activePlan === p ? "2px solid #0c7a3e" : "1px solid #ccc",
-                        background: activePlan === p ? "#f0fff4" : "#fff",
-                        color: activePlan === p ? "#0c7a3e" : "#333",
-                        fontWeight: 600,
-                        fontSize: "13px",
-                        cursor: "pointer",
-                        fontFamily: "inherit",
-                      }}
-                    >
-                      {activePlan === p ? "✓ " : ""}{p.charAt(0).toUpperCase() + p.slice(1)}
-                    </button>
-                  ))}
-                </InlineStack>
-              </BlockStack>
-            </Box>
-          </Layout.Section>
-        )}
 
         {/* ── Footer note ── */}
         <Layout.Section>
