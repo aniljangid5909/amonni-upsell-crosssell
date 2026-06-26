@@ -187,8 +187,14 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }];
 
-  // Use the current online session token from authenticate.admin() — fresh, expiring token
-  const accessToken = session.accessToken;
+  // Use the offline access token (stored during install OAuth) — fresh after reinstall
+  const { prisma } = await import("../shopify.server");
+  const offlineSession = await prisma.session.findFirst({
+    where: { shop, isOnline: false },
+    orderBy: { id: "desc" },
+    select: { accessToken: true },
+  });
+  const accessToken = offlineSession?.accessToken || session.accessToken;
   const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
 
   try {
