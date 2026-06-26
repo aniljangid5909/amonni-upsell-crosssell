@@ -212,18 +212,18 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     const gqlErrors = body?.errors?.map((e: any) => e.message).join(", ");
     return json({ error: gqlErrors || "Could not get billing URL from Shopify.", confirmationUrl: null });
   } catch (err: any) {
-    // Shopify adapter throws a Response for redirects (e.g. billing confirmation page)
     if (err instanceof Response) {
       const location = err.headers.get("Location");
       if (location) return json({ confirmationUrl: location, error: null });
-      // Try to read body for the confirmation URL
       try {
-        const text = await err.text();
-        const match = text.match(/https:\/\/[^\s"'<]+confirmation[^\s"'<]*/);
-        if (match) return json({ confirmationUrl: match[0], error: null });
-      } catch (_) {}
-      // It's a redirect Remix should handle (re-auth etc)
-      throw err;
+        const text = await err.clone().text();
+        const match = text.match(/https:\/\/[^\s"'<>]+/g);
+        const confirmUrl = match?.find((u) => u.includes("confirm") || u.includes("billing"));
+        if (confirmUrl) return json({ confirmationUrl: confirmUrl, error: null });
+        return json({ error: `Billing redirect received but no URL found. Status: ${err.status}`, confirmationUrl: null });
+      } catch (_) {
+        return json({ error: `Billing redirect received (status ${err.status}). Try again.`, confirmationUrl: null });
+      }
     }
     return json({ error: `Billing error: ${err?.message || String(err)}`, confirmationUrl: null });
   }
