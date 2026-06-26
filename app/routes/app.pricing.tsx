@@ -230,7 +230,9 @@ export default function PricingPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const actionData = useActionData<{ confirmationUrl: string | null; error: string | null }>();
-  const loading = navigation.state === "submitting";
+  const [subLoading, setSubLoading] = useState(false);
+  const [subError, setSubError] = useState<string | null>(null);
+  const loading = navigation.state === "submitting" || subLoading;
 
   useEffect(() => {
     if (actionData?.confirmationUrl) {
@@ -243,8 +245,28 @@ export default function PricingPage() {
   if (host) qs.set("host", host);
   const qsStr = qs.toString() ? `?${qs.toString()}` : "";
 
-  function handleSubscribe(planId: string) {
-    submit({ _action: "subscribe", planId, interval }, { method: "post" });
+  // Use window.fetch (patched by Shopify App Bridge) so the Authorization header
+  // with the session token is included — enables token exchange in the action.
+  async function handleSubscribe(planId: string) {
+    setSubLoading(true);
+    setSubError(null);
+    try {
+      const formData = new FormData();
+      formData.set("_action", "subscribe");
+      formData.set("planId", planId);
+      formData.set("interval", interval);
+      const res = await window.fetch("/app/pricing", { method: "POST", body: formData });
+      const data = await res.json();
+      if (data?.confirmationUrl) {
+        window.top!.location.href = data.confirmationUrl;
+      } else {
+        setSubError(data?.error || "Unknown error");
+      }
+    } catch (e: any) {
+      setSubError(e?.message || String(e));
+    } finally {
+      setSubLoading(false);
+    }
   }
 
   function handleCancel() {
@@ -270,11 +292,11 @@ export default function PricingPage() {
           </Layout.Section>
         )}
 
-        {/* Error from action */}
-        {actionData?.error && (
+        {/* Error from action or fetch */}
+        {(actionData?.error || subError) && (
           <Layout.Section>
             <Banner tone="critical" title="Subscription error">
-              <p>{actionData.error}</p>
+              <p>{actionData?.error || subError}</p>
             </Banner>
           </Layout.Section>
         )}
