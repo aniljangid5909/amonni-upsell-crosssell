@@ -1,14 +1,16 @@
+import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData, useNavigate } from "@remix-run/react";
+import { useEffect } from "react";
 import { authenticate } from "../shopify.server";
 
 const IS_TEST = process.env.SHOPIFY_BILLING_TEST !== "false";
 
-// Full-page loader — client navigates window.top here so Shopify can
-// handle the OAuth redirect chain and then the billing confirmation redirect.
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const url = new URL(request.url);
   const planId = url.searchParams.get("plan") ?? "";
   const interval = url.searchParams.get("interval") ?? "monthly";
+  const host = url.searchParams.get("host") ?? "";
 
   const planNames: Record<string, string> = {
     growth: interval === "yearly" ? "Amoni Upsell Growth (Yearly)" : "Amoni Upsell Growth (Monthly)",
@@ -16,33 +18,93 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   };
   const planName = planNames[planId];
   if (!planName) {
-    return new Response("Invalid plan", { status: 400 });
+    return json({ error: "Invalid plan", confirmationUrl: null, host });
   }
 
-  const { billing, session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
-  const host = url.searchParams.get("host") ?? "";
   const returnUrl = `${url.origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
 
   try {
-    await billing.request({
-      plan: planName as any,
-      isTest: IS_TEST,
-      returnUrl,
-    });
+    const res = await admin.graphql(
+      `#graphql
+      mutation appSubscriptionCreate($name: String!, $returnUrl: URL!, $test: Boolean, $lineItems: [AppSubscriptionLineItemInput!]!) {
+        appSubscriptionCreate(name: $name, returnUrl: $returnUrl, test: $test, lineItems: $lineItems) {
+          appSubscription { id }
+          confirmationUrl
+          userErrors { field message }
+        }
+      }`,
+      {
+        variables: {
+          name: planName,
+          returnUrl,
+          test: IS_TEST,
+          lineItems: [{
+            plan: {
+              appRecurringPricingDetails: {
+                price: {
+                  amount: planId === "pro"
+                    ? (interval === "yearly" ? 479.88 : 49.99)
+                    : (interval === "yearly" ? 191.88 : 19.99),
+                  currencyCode: "USD",
+                },
+                interval: interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS",
+              }
+            }
+          }],
+        }
+      }
+    );
+
+    const body = await res.json();
+    const result = body?.data?.appSubscriptionCreate;
+
+    if (result?.userErrors?.length) {
+      const msg = result.userErrors.map((e: any) => e.message).join(", ");
+      return json({ error: msg, confirmationUrl: null, host });
+    }
+
+    const confirmationUrl = result?.confirmationUrl;
+    if (confirmationUrl) {
+      return json({ confirmationUrl, error: null, host });
+    }
+
+    const errDetail = body?.errors ? JSON.stringify(body.errors) : "No confirmation URL returned";
+    return json({ error: errDetail, confirmationUrl: null, host });
   } catch (err: any) {
-    // A redirect Response IS the success path — re-throw so Remix follows it
-    if (err instanceof Response) throw err;
-    // Any other error — show details so we can debug
-    const msg = err?.message || JSON.stringify(err) || "unknown error";
-    return new Response(
-      `<html><body style="font-family:monospace;padding:32px">
-        <h2>Billing error</h2><pre>${msg}</pre>
-        <p>Plan: ${planName} | Test: ${IS_TEST} | Shop: ${shop}</p>
-      </body></html>`,
-      { status: 500, headers: { "Content-Type": "text/html" } }
+    if (err instanceof Response) {
+      const text = await err.text().catch(() => "");
+      return json({ error: `HTTP ${err.status}: ${text.slice(0, 300)}`, confirmationUrl: null, host });
+    }
+    return json({ error: err?.message || String(err), confirmationUrl: null, host });
+  }
+};
+
+export default function BillingPage() {
+  const { confirmationUrl, error, host } = useLoaderData<typeof loader>();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (confirmationUrl) {
+      // Navigate the top frame (parent Shopify Admin) to the billing approval page
+      window.top!.location.href = confirmationUrl;
+    }
+  }, [confirmationUrl]);
+
+  if (error) {
+    return (
+      <div style={{ fontFamily: "monospace", padding: 32 }}>
+        <h2>Billing error</h2>
+        <pre style={{ background: "#fee", padding: 16, borderRadius: 8 }}>{error}</pre>
+        <button onClick={() => navigate(`/app/pricing?host=${host}`)}>Back to pricing</button>
+      </div>
     );
   }
 
-  return new Response("Billing redirect did not occur", { status: 500 });
-};
+  return (
+    <div style={{ fontFamily: "sans-serif", padding: 32, textAlign: "center" }}>
+      <p>Redirecting to Shopify payment page…</p>
+    </div>
+  );
+}
