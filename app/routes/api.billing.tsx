@@ -43,13 +43,17 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
       }).toString(),
     });
-    const exchData = await exchRes.json();
+    const exchText = await exchRes.text();
     if (!exchRes.ok) {
-      return json({ error: `Token exchange HTTP ${exchRes.status}: ${JSON.stringify(exchData).slice(0, 300)}`, confirmationUrl: null });
+      return json({ error: `Token exchange HTTP ${exchRes.status}: ${exchText.slice(0, 300)}`, confirmationUrl: null });
+    }
+    let exchData: any;
+    try { exchData = JSON.parse(exchText); } catch {
+      return json({ error: `Token exchange non-JSON (${exchRes.status}): ${exchText.slice(0, 300)}`, confirmationUrl: null });
     }
     accessToken = exchData.access_token;
   } catch (e: any) {
-    return json({ error: `Token exchange error: ${e?.message || String(e)}`, confirmationUrl: null });
+    return json({ error: `Token exchange fetch error: ${e?.message || String(e)}`, confirmationUrl: null });
   }
 
   if (!accessToken) {
