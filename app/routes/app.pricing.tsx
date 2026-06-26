@@ -245,8 +245,6 @@ export default function PricingPage() {
   if (host) qs.set("host", host);
   const qsStr = qs.toString() ? `?${qs.toString()}` : "";
 
-  // Use window.fetch (patched by Shopify App Bridge) so the Authorization header
-  // with the session token is included — enables token exchange in the action.
   async function handleSubscribe(planId: string) {
     setSubLoading(true);
     setSubError(null);
@@ -256,6 +254,15 @@ export default function PricingPage() {
       formData.set("planId", planId);
       formData.set("interval", interval);
       const res = await window.fetch("/app/pricing", { method: "POST", body: formData });
+
+      // If we got HTML back the SDK redirected to OAuth — session token is stale/invalid.
+      // Send the user through a session reset so a fresh expiring token is issued.
+      const contentType = res.headers.get("content-type") || "";
+      if (contentType.includes("text/html") || res.redirected) {
+        window.top!.location.href = `/auth/reset?shop=${shop}`;
+        return;
+      }
+
       const data = await res.json();
       if (data?.confirmationUrl) {
         window.top!.location.href = data.confirmationUrl;
