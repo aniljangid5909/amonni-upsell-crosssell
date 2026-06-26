@@ -31,13 +31,69 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   }
 
   const authHeader = request.headers.get("Authorization");
-  const { admin, session } = await authenticate.admin(request);
-  const shop = session.shop;
-  const returnUrl = `${url.origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
+  const shop = url.searchParams.get("shop") ?? "";
 
   const price = planId === "pro"
     ? (interval === "yearly" ? 479.88 : 49.99)
     : (interval === "yearly" ? 191.88 : 19.99);
+
+  // For API fetches: manually exchange the session JWT for an online access token.
+  // This bypasses authenticate.admin() which keeps redirecting to OAuth.
+  if (isApiFetch && authHeader?.startsWith("Bearer ") && shop) {
+    const sessionJwt = authHeader.slice(7);
+    let accessToken: string | null = null;
+
+    try {
+      const exchRes = await fetch(`https://${shop}/admin/oauth/access_token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          grant_type: "urn:ietf:params:oauth:grant-type:token-exchange",
+          subject_token: sessionJwt,
+          subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
+          client_id: process.env.SHOPIFY_API_KEY!,
+          client_secret: process.env.SHOPIFY_API_SECRET!,
+          requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
+        }).toString(),
+      });
+      const exchData = await exchRes.json();
+      if (!exchRes.ok) {
+        return apiJson({ error: `Token exchange failed: HTTP ${exchRes.status} — ${JSON.stringify(exchData).slice(0, 300)}`, confirmationUrl: null, host });
+      }
+      accessToken = exchData.access_token;
+    } catch (e: any) {
+      return apiJson({ error: `Token exchange error: ${e?.message || String(e)}`, confirmationUrl: null, host });
+    }
+
+    if (!accessToken) {
+      return apiJson({ error: "Token exchange returned no access_token", confirmationUrl: null, host });
+    }
+
+    const returnUrl = `${url.origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
+    try {
+      const gqlRes = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Shopify-Access-Token": accessToken },
+        body: JSON.stringify({
+          query: `mutation appSubscriptionCreate($name:String!,$returnUrl:URL!,$test:Boolean,$lineItems:[AppSubscriptionLineItemInput!]!){appSubscriptionCreate(name:$name,returnUrl:$returnUrl,test:$test,lineItems:$lineItems){appSubscription{id}confirmationUrl userErrors{field message}}}`,
+          variables: { name: planName, returnUrl, test: IS_TEST, lineItems: [{ plan: { appRecurringPricingDetails: { price: { amount: price, currencyCode: "USD" }, interval: interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS" } } }] },
+        }),
+      });
+      const body = await gqlRes.json();
+      if (!gqlRes.ok) return apiJson({ error: `GraphQL HTTP ${gqlRes.status}: ${JSON.stringify(body).slice(0, 300)}`, confirmationUrl: null, host });
+      const result = body?.data?.appSubscriptionCreate;
+      if (result?.userErrors?.length) return apiJson({ error: result.userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null, host });
+      const confirmationUrl = result?.confirmationUrl;
+      if (confirmationUrl) return apiJson({ confirmationUrl, error: null, host });
+      return apiJson({ error: `No URL from GraphQL: ${JSON.stringify(body).slice(0, 300)}`, confirmationUrl: null, host });
+    } catch (e: any) {
+      return apiJson({ error: `GraphQL error: ${e?.message || String(e)}`, confirmationUrl: null, host });
+    }
+  }
+
+  // Non-API path (page navigation) — use SDK normally
+  const { admin, session } = await authenticate.admin(request);
+  const returnUrl = `${url.origin}/app/pricing?shop=${session.shop}&host=${host}&billing=1`;
 
   try {
     const res = await admin.graphql(
