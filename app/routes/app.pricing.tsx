@@ -227,7 +227,8 @@ export default function PricingPage() {
   const qsStr = qs.toString() ? `?${qs.toString()}` : "";
 
   function handleSubscribe(planId: string) {
-    submit({ _action: "subscribe", planId, interval }, { method: "post" });
+    const params = new URLSearchParams({ plan: planId, interval, shop, host });
+    window.top!.location.href = `/app/billing?${params.toString()}`;
   }
 
   function handleCancel() {
