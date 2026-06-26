@@ -21,21 +21,43 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ error: "Invalid plan", confirmationUrl: null, host });
   }
 
-  const { admin, session } = await authenticate.admin(request);
+  const { session } = await authenticate.admin(request);
   const shop = session.shop;
   const returnUrl = `${url.origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
 
+  // Use the offline session token directly — the token exchange online token
+  // does not have billing permissions (403). The offline token (written during
+  // the last OAuth install) is needed for appSubscriptionCreate.
+  const { prisma } = await import("../shopify.server");
+  const offlineSession = await prisma.session.findFirst({
+    where: { shop, isOnline: false },
+    orderBy: { expires: "desc" },
+    select: { accessToken: true, expires: true },
+  });
+
+  const accessToken = offlineSession?.accessToken || session.accessToken;
+
+  const price = planId === "pro"
+    ? (interval === "yearly" ? 479.88 : 49.99)
+    : (interval === "yearly" ? 191.88 : 19.99);
+
   try {
-    const res = await admin.graphql(
-      `#graphql
-      mutation appSubscriptionCreate($name: String!, $returnUrl: URL!, $test: Boolean, $lineItems: [AppSubscriptionLineItemInput!]!) {
-        appSubscriptionCreate(name: $name, returnUrl: $returnUrl, test: $test, lineItems: $lineItems) {
-          appSubscription { id }
-          confirmationUrl
-          userErrors { field message }
-        }
-      }`,
-      {
+    const res = await fetch(`https://${shop}/admin/api/2025-01/graphql.json`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": accessToken,
+      },
+      body: JSON.stringify({
+        query: `
+          mutation appSubscriptionCreate($name: String!, $returnUrl: URL!, $test: Boolean, $lineItems: [AppSubscriptionLineItemInput!]!) {
+            appSubscriptionCreate(name: $name, returnUrl: $returnUrl, test: $test, lineItems: $lineItems) {
+              appSubscription { id }
+              confirmationUrl
+              userErrors { field message }
+            }
+          }
+        `,
         variables: {
           name: planName,
           returnUrl,
@@ -43,26 +65,25 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
           lineItems: [{
             plan: {
               appRecurringPricingDetails: {
-                price: {
-                  amount: planId === "pro"
-                    ? (interval === "yearly" ? 479.88 : 49.99)
-                    : (interval === "yearly" ? 191.88 : 19.99),
-                  currencyCode: "USD",
-                },
+                price: { amount: price, currencyCode: "USD" },
                 interval: interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS",
               }
             }
           }],
-        }
-      }
-    );
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      return json({ error: `HTTP ${res.status}: ${text.slice(0, 400)} | token_expires: ${offlineSession?.expires} | token_prefix: ${accessToken?.slice(0,8)}`, confirmationUrl: null, host });
+    }
 
     const body = await res.json();
     const result = body?.data?.appSubscriptionCreate;
 
     if (result?.userErrors?.length) {
-      const msg = result.userErrors.map((e: any) => e.message).join(", ");
-      return json({ error: msg, confirmationUrl: null, host });
+      return json({ error: result.userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null, host });
     }
 
     const confirmationUrl = result?.confirmationUrl;
@@ -70,13 +91,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
       return json({ confirmationUrl, error: null, host });
     }
 
-    const errDetail = body?.errors ? JSON.stringify(body.errors) : "No confirmation URL returned";
-    return json({ error: errDetail, confirmationUrl: null, host });
+    return json({ error: `No URL. body: ${JSON.stringify(body).slice(0, 400)}`, confirmationUrl: null, host });
   } catch (err: any) {
-    if (err instanceof Response) {
-      const text = await err.text().catch(() => "");
-      return json({ error: `HTTP ${err.status}: ${text.slice(0, 300)}`, confirmationUrl: null, host });
-    }
     return json({ error: err?.message || String(err), confirmationUrl: null, host });
   }
 };
