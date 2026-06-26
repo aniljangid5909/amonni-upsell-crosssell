@@ -178,60 +178,46 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const origin = new URL(request.url).origin;
   const returnUrl = `${origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
-  const lineItems = [{
-    plan: {
-      appRecurringPricingDetails: {
-        price: { amount: interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice, currencyCode: "USD" },
-        interval: interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS",
-      }
-    }
-  }];
-
-  // Use the offline access token (stored during install OAuth) — fresh after reinstall
-  const { prisma } = await import("../shopify.server");
-  const offlineSession = await prisma.session.findFirst({
-    where: { shop, isOnline: false },
-    orderBy: { id: "desc" },
-    select: { accessToken: true },
-  });
-  const accessToken = offlineSession?.accessToken || session.accessToken;
   const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
 
   try {
-    const res = await fetch(
-      `https://${shop}/admin/api/2024-01/recurring_application_charges.json`,
+    const gqlRes = await admin.graphql(
+      `#graphql
+      mutation appSubscriptionCreate($name: String!, $returnUrl: URL!, $test: Boolean, $lineItems: [AppSubscriptionLineItemInput!]!) {
+        appSubscriptionCreate(name: $name, returnUrl: $returnUrl, test: $test, lineItems: $lineItems) {
+          appSubscription { id }
+          confirmationUrl
+          userErrors { field message }
+        }
+      }`,
       {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": accessToken,
-        },
-        body: JSON.stringify({
-          recurring_application_charge: {
-            name: planName,
-            price,
-            return_url: returnUrl,
-            trial_days: 7,
-            test: IS_TEST,
-          },
-        }),
+        variables: {
+          name: planName,
+          returnUrl,
+          test: IS_TEST,
+          lineItems: [{
+            plan: {
+              appRecurringPricingDetails: {
+                price: { amount: price, currencyCode: "USD" },
+                interval: interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS",
+              }
+            }
+          }],
+        }
       }
     );
 
-    const data = await res.json();
-
-    if (!res.ok) {
-      const errMsg = data?.errors
-        ? (typeof data.errors === "string" ? data.errors : JSON.stringify(data.errors))
-        : `HTTP ${res.status}`;
-      return json({ error: `Billing error: ${errMsg}`, confirmationUrl: null });
+    const body = await gqlRes.json();
+    const result = body?.data?.appSubscriptionCreate;
+    if (result?.userErrors?.length) {
+      return json({ error: `Billing error: ${result.userErrors.map((e: any) => e.message).join(", ")}`, confirmationUrl: null });
     }
-
-    const confirmationUrl = data?.recurring_application_charge?.confirmation_url;
+    const confirmationUrl = result?.confirmationUrl;
     if (confirmationUrl) {
       return json({ confirmationUrl, error: null });
     }
-    return json({ error: "No confirmation URL returned by Shopify.", confirmationUrl: null });
+    const errDetail = body?.errors ? JSON.stringify(body.errors) : `HTTP ${gqlRes.status}`;
+    return json({ error: `Billing error: ${errDetail}`, confirmationUrl: null });
   } catch (err: any) {
     return json({ error: `Billing error: ${err?.message || String(err)}`, confirmationUrl: null });
   }
