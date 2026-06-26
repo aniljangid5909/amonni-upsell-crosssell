@@ -25,17 +25,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = session.shop;
   const returnUrl = `${url.origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
 
-  // Use the offline session token directly — the token exchange online token
-  // does not have billing permissions (403). The offline token (written during
-  // the last OAuth install) is needed for appSubscriptionCreate.
-  const { prisma } = await import("../shopify.server");
-  const offlineSession = await prisma.session.findFirst({
-    where: { shop, isOnline: false },
-    orderBy: { expires: "desc" },
-    select: { accessToken: true, expires: true },
-  });
-
-  const accessToken = offlineSession?.accessToken || session.accessToken;
+  // Use the online session token from token exchange — it's fresh and expiring.
+  // The offline token in DB is non-expiring (old) and Shopify rejects it.
+  const accessToken = session.accessToken;
+  const sessionMeta = `isOnline:${session.isOnline} expires:${(session as any).expires} prefix:${accessToken?.slice(0, 8)}`;
 
   const price = planId === "pro"
     ? (interval === "yearly" ? 479.88 : 49.99)
@@ -76,7 +69,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
     if (!res.ok) {
       const text = await res.text();
-      return json({ error: `HTTP ${res.status}: ${text.slice(0, 400)} | token_expires: ${offlineSession?.expires} | token_prefix: ${accessToken?.slice(0,8)}`, confirmationUrl: null, host });
+      return json({ error: `HTTP ${res.status}: ${text.slice(0, 400)} | ${sessionMeta}`, confirmationUrl: null, host });
     }
 
     const body = await res.json();
