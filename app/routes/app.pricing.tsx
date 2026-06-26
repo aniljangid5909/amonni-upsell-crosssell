@@ -139,7 +139,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 // ── Action — create or cancel subscription ───────────────────────────────────
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, session } = await authenticate.admin(request);
+  const { admin, session, billing } = await authenticate.admin(request);
   const shop = session.shop;
   const url = new URL(request.url);
   const host = url.searchParams.get("host") ?? "";
@@ -178,47 +178,22 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const origin = new URL(request.url).origin;
   const returnUrl = `${origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
-  const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
-
   try {
-    const gqlRes = await admin.graphql(
-      `#graphql
-      mutation appSubscriptionCreate($name: String!, $returnUrl: URL!, $test: Boolean, $lineItems: [AppSubscriptionLineItemInput!]!) {
-        appSubscriptionCreate(name: $name, returnUrl: $returnUrl, test: $test, lineItems: $lineItems) {
-          appSubscription { id }
-          confirmationUrl
-          userErrors { field message }
-        }
-      }`,
-      {
-        variables: {
-          name: planName,
-          returnUrl,
-          test: IS_TEST,
-          lineItems: [{
-            plan: {
-              appRecurringPricingDetails: {
-                price: { amount: price, currencyCode: "USD" },
-                interval: interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS",
-              }
-            }
-          }],
-        }
-      }
-    );
-
-    const body = await gqlRes.json();
-    const result = body?.data?.appSubscriptionCreate;
-    if (result?.userErrors?.length) {
-      return json({ error: `Billing error: ${result.userErrors.map((e: any) => e.message).join(", ")}`, confirmationUrl: null });
-    }
-    const confirmationUrl = result?.confirmationUrl;
-    if (confirmationUrl) {
-      return json({ confirmationUrl, error: null });
-    }
-    const errDetail = body?.errors ? JSON.stringify(body.errors) : `HTTP ${gqlRes.status}`;
-    return json({ error: `Billing error: ${errDetail}`, confirmationUrl: null });
+    // billing.request() throws a redirect to Shopify's confirmation page
+    await billing.request({
+      plan: planName,
+      isTest: IS_TEST,
+      returnUrl,
+    });
+    // Should not reach here — billing.request throws a redirect
+    return json({ error: "Billing redirect did not occur.", confirmationUrl: null });
   } catch (err: any) {
+    // A redirect Response is the success path — pass it through
+    if (err instanceof Response && err.status >= 300 && err.status < 400) {
+      const confirmationUrl = err.headers.get("Location");
+      if (confirmationUrl) return json({ confirmationUrl, error: null });
+      throw err; // let Remix handle the redirect
+    }
     if (err instanceof Response) {
       const text = await err.text().catch(() => "");
       return json({ error: `Billing error: HTTP ${err.status} — ${text || "no details"}`, confirmationUrl: null });
