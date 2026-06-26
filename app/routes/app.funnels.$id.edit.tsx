@@ -109,7 +109,7 @@ export const action = async ({ request, params }: ActionFunctionArgs) => {
 
   await prisma.funnel.update({
     where: { id: id as string, shop: session.shop },
-    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerProductIds, offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId, widgetTitle, displayStyle },
+    data: { name, placement, offerType, triggerProductIds, offerProductId: offerProductId || "", offerProductIds, offerTitle: (formData.get("offerTitle") as string) || "", offerImageUrl, offerVariantId, offerPrice, discountType, discountValue, minCartValue, skipSubscribed, discountCode, discountRuleId, widgetTitle, displayStyle },
   });
 
   return redirect(`/app/funnels${qs}`);
@@ -172,7 +172,7 @@ export default function EditFunnelPage() {
       : (funnel.offerProductId ? [funnel.offerProductId] : []);
     return ids.map((id, i) => ({
       id: numericToGid(id),
-      title: i === 0 ? funnel.name : `Product ${id}`,
+      title: i === 0 ? (funnel.offerTitle || funnel.name) : `Product ${id}`,
       imageUrl: i === 0 ? (funnel.offerImageUrl || "") : "",
       variantId: i === 0 ? (funnel.offerVariantId || "") : "",
       price: i === 0 ? String(funnel.offerPrice || 0) : "0",

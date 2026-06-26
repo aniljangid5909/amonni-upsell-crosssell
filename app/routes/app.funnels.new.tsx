@@ -113,6 +113,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       triggerProductIds,
       offerProductId: offerProductId || "",
       offerProductIds,
+      offerTitle: (formData.get("offerTitle") as string) || "",
       offerImageUrl,
       offerVariantId,
       offerPrice,

@@ -98,7 +98,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         id: `${f.id}_${i}`,
         funnelId: f.id,
         offerType: f.offerType,
-        offerTitle: pd?.title || (i === 0 ? f.name : `Product ${pid}`),
+        offerTitle: pd?.title || (i === 0 ? (f.offerTitle || f.name) : `Product ${pid}`),
         offerProductId: pid,
         offerImageUrl: pd?.imageUrl || (i === 0 ? f.offerImageUrl : ""),
         offerVariantId: pd?.variantId || (i === 0 ? f.offerVariantId : ""),
