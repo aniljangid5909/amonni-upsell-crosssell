@@ -187,44 +187,46 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     }
   }];
 
+  // Use the current online session token from authenticate.admin() — fresh, expiring token
+  const accessToken = session.accessToken;
+  const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
+
   try {
-    // Use admin.graphql() — uses the current session token managed by authenticate.admin()
-    const res = await admin.graphql(`
-      mutation AppSubscriptionCreate($name: String!, $returnUrl: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $test: Boolean) {
-        appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test) {
-          appSubscription { id }
-          confirmationUrl
-          userErrors { field message }
-        }
+    const res = await fetch(
+      `https://${shop}/admin/api/2024-01/recurring_application_charges.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": accessToken,
+        },
+        body: JSON.stringify({
+          recurring_application_charge: {
+            name: planName,
+            price,
+            return_url: returnUrl,
+            trial_days: 7,
+            test: IS_TEST,
+          },
+        }),
       }
-    `, { variables: { name: planName, returnUrl, lineItems, test: IS_TEST } });
+    );
 
-    const body = await res.json();
-    const data = body?.data?.appSubscriptionCreate;
+    const data = await res.json();
 
-    if (data?.userErrors?.length) {
-      return json({ error: data.userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null });
+    if (!res.ok) {
+      const errMsg = data?.errors
+        ? (typeof data.errors === "string" ? data.errors : JSON.stringify(data.errors))
+        : `HTTP ${res.status}`;
+      return json({ error: `Billing error: ${errMsg}`, confirmationUrl: null });
     }
-    if (data?.confirmationUrl) {
-      return json({ confirmationUrl: data.confirmationUrl, error: null });
+
+    const confirmationUrl = data?.recurring_application_charge?.confirmation_url;
+    if (confirmationUrl) {
+      return json({ confirmationUrl, error: null });
     }
-    // No confirmation URL = already subscribed or error
-    const gqlErrors = body?.errors?.map((e: any) => e.message).join(", ");
-    return json({ error: gqlErrors || "Could not get billing URL from Shopify.", confirmationUrl: null });
+    return json({ error: "No confirmation URL returned by Shopify.", confirmationUrl: null });
   } catch (err: any) {
-    if (err instanceof Response) {
-      const location = err.headers.get("Location");
-      if (location) return json({ confirmationUrl: location, error: null });
-      try {
-        const text = await err.clone().text();
-        const match = text.match(/https:\/\/[^\s"'<>]+/g);
-        const confirmUrl = match?.find((u) => u.includes("confirm") || u.includes("billing"));
-        if (confirmUrl) return json({ confirmationUrl: confirmUrl, error: null });
-        return json({ error: `Billing redirect received but no URL found. Status: ${err.status}`, confirmationUrl: null });
-      } catch (_) {
-        return json({ error: `Billing redirect received (status ${err.status}). Try again.`, confirmationUrl: null });
-      }
-    }
     return json({ error: `Billing error: ${err?.message || String(err)}`, confirmationUrl: null });
   }
 };
