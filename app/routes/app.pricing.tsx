@@ -230,50 +230,19 @@ export default function PricingPage() {
   const submit = useSubmit();
   const navigation = useNavigation();
   const actionData = useActionData<{ confirmationUrl: string | null; error: string | null }>();
-  const [subLoading, setSubLoading] = useState(false);
   const [subError, setSubError] = useState<string | null>(null);
-  const loading = navigation.state === "submitting" || subLoading;
-
-  useEffect(() => {
-    if (actionData?.confirmationUrl) {
-      window.top!.location.href = actionData.confirmationUrl;
-    }
-  }, [actionData]);
+  const loading = navigation.state !== "idle";
 
   const qs = new URLSearchParams();
   if (shop) qs.set("shop", shop);
   if (host) qs.set("host", host);
   const qsStr = qs.toString() ? `?${qs.toString()}` : "";
 
-  async function handleSubscribe(planId: string) {
-    setSubLoading(true);
-    setSubError(null);
-    try {
-      const formData = new FormData();
-      formData.set("_action", "subscribe");
-      formData.set("planId", planId);
-      formData.set("interval", interval);
-      const res = await window.fetch("/app/pricing", { method: "POST", body: formData });
-
-      // If we got HTML back the SDK redirected to OAuth — session token is stale/invalid.
-      // Send the user through a session reset so a fresh expiring token is issued.
-      const contentType = res.headers.get("content-type") || "";
-      if (contentType.includes("text/html") || res.redirected) {
-        window.top!.location.href = `/auth/reset?shop=${shop}`;
-        return;
-      }
-
-      const data = await res.json();
-      if (data?.confirmationUrl) {
-        window.top!.location.href = data.confirmationUrl;
-      } else {
-        setSubError(data?.error || "Unknown error");
-      }
-    } catch (e: any) {
-      setSubError(e?.message || String(e));
-    } finally {
-      setSubLoading(false);
-    }
+  function handleSubscribe(planId: string) {
+    // Navigate within the embedded iframe — keeps the Shopify session context so
+    // authenticate.admin() works and billing.request() can redirect to the
+    // Shopify payment approval page via App Bridge.
+    navigate(`/app/billing?plan=${planId}&interval=${interval}&shop=${shop}&host=${host}`);
   }
 
   function handleCancel() {
