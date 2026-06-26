@@ -247,10 +247,26 @@ export default function PricingPage() {
     }
   }, [billingFetcher.data]);
 
-  function handleSubscribe(planId: string) {
-    // useFetcher.load() goes through App Bridge's patched fetch, adding the
-    // Shopify session JWT header → enables token exchange → fresh online token.
-    billingFetcher.load(`/app/billing?plan=${planId}&interval=${interval}&shop=${shop}&host=${host}`);
+  async function handleSubscribe(planId: string) {
+    setSubError(null);
+    // Manually get the App Bridge session JWT and send it in the Authorization
+    // header so authenticate.admin() can do token exchange → fresh online token.
+    const idToken = await (window as any).shopify?.idToken?.().catch(() => null);
+    const headers: Record<string, string> = {};
+    if (idToken) headers["Authorization"] = `Bearer ${idToken}`;
+
+    const url = `/app/billing?plan=${planId}&interval=${interval}&shop=${shop}&host=${host}`;
+    try {
+      const res = await fetch(url, { headers });
+      const data = await res.json();
+      if (data?.confirmationUrl) {
+        window.top!.location.href = data.confirmationUrl;
+      } else {
+        setSubError(data?.error || "Unknown billing error");
+      }
+    } catch (e: any) {
+      setSubError(e?.message || String(e));
+    }
   }
 
   function handleCancel() {
