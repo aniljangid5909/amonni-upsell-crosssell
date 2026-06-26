@@ -139,7 +139,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 // ── Action — create or cancel subscription ───────────────────────────────────
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, session, billing } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const url = new URL(request.url);
   const host = url.searchParams.get("host") ?? "";
@@ -178,26 +178,43 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const origin = new URL(request.url).origin;
   const returnUrl = `${origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
+  // Use session.accessToken — with unstable_newEmbeddedAuthStrategy this is a
+  // fresh online token from token exchange, valid for REST Admin API calls.
+  const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
   try {
-    // billing.request() throws a redirect to Shopify's confirmation page
-    await billing.request({
-      plan: planName,
-      isTest: IS_TEST,
-      returnUrl,
-    });
-    // Should not reach here — billing.request throws a redirect
-    return json({ error: "Billing redirect did not occur.", confirmationUrl: null });
+    const res = await fetch(
+      `https://${shop}/admin/api/2024-01/recurring_application_charges.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": session.accessToken,
+        },
+        body: JSON.stringify({
+          recurring_application_charge: {
+            name: planName,
+            price,
+            return_url: returnUrl,
+            trial_days: 7,
+            test: IS_TEST,
+          },
+        }),
+      }
+    );
+    const text = await res.text();
+    let data: any = {};
+    try { data = JSON.parse(text); } catch (_) {}
+
+    if (!res.ok) {
+      const errMsg = data?.errors
+        ? (typeof data.errors === "string" ? data.errors : JSON.stringify(data.errors))
+        : `HTTP ${res.status}: ${text.slice(0, 200)}`;
+      return json({ error: `Billing error: ${errMsg}`, confirmationUrl: null });
+    }
+    const confirmationUrl = data?.recurring_application_charge?.confirmation_url;
+    if (confirmationUrl) return json({ confirmationUrl, error: null });
+    return json({ error: `No confirmation URL. Response: ${text.slice(0, 300)}`, confirmationUrl: null });
   } catch (err: any) {
-    // A redirect Response is the success path — pass it through
-    if (err instanceof Response && err.status >= 300 && err.status < 400) {
-      const confirmationUrl = err.headers.get("Location");
-      if (confirmationUrl) return json({ confirmationUrl, error: null });
-      throw err; // let Remix handle the redirect
-    }
-    if (err instanceof Response) {
-      const text = await err.text().catch(() => "");
-      return json({ error: `Billing error: HTTP ${err.status} — ${text || "no details"}`, confirmationUrl: null });
-    }
     return json({ error: `Billing error: ${err?.message || String(err)}`, confirmationUrl: null });
   }
 };
