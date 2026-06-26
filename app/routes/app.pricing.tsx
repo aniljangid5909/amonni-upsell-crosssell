@@ -265,7 +265,7 @@ export default function PricingPage() {
     body.set("host", host);
     if (idToken) body.set("token", idToken);
     try {
-      const res = await fetch("/app/billing", { method: "POST", body });
+      const res = await fetch("/api/billing", { method: "POST", body });
       const ct = res.headers.get("content-type") || "";
       if (!ct.includes("json")) {
         setSubError(`Unexpected response (${res.status}, idToken:${idToken ? "yes" : "no"}). Try refreshing.`);
