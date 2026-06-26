@@ -257,16 +257,18 @@ export default function PricingPage() {
       }
     } catch (_) {}
 
-    // Pass everything as query params — avoids header stripping by edge proxies
-    const params = new URLSearchParams({
-      plan: planId, interval, shop, host, _api: "1",
-      ...(idToken ? { token: idToken } : {}),
-    });
+    // POST to the billing action — Remix returns action data as JSON directly
+    const body = new FormData();
+    body.set("plan", planId);
+    body.set("interval", interval);
+    body.set("shop", shop);
+    body.set("host", host);
+    if (idToken) body.set("token", idToken);
     try {
-      const res = await fetch(`/app/billing?${params.toString()}`);
+      const res = await fetch("/app/billing", { method: "POST", body });
       const ct = res.headers.get("content-type") || "";
       if (!ct.includes("json")) {
-        setSubError(`Auth redirect (${res.status}, idToken:${idToken ? "yes" : "no"}). Try refreshing.`);
+        setSubError(`Unexpected response (${res.status}, idToken:${idToken ? "yes" : "no"}). Try refreshing.`);
         return;
       }
       const data = await res.json();
