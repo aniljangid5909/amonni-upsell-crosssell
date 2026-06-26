@@ -139,7 +139,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
 // ── Action — create or cancel subscription ───────────────────────────────────
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { admin, billing, session } = await authenticate.admin(request);
+  const { admin, session } = await authenticate.admin(request);
   const shop = session.shop;
   const url = new URL(request.url);
   const host = url.searchParams.get("host") ?? "";
@@ -178,49 +178,58 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   const origin = new URL(request.url).origin;
   const returnUrl = `${origin}/app/pricing?shop=${shop}&host=${host}&billing=1`;
-  const lineItems = [{
-    plan: {
-      appRecurringPricingDetails: {
-        price: { amount: interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice, currencyCode: "USD" },
-        interval: interval === "yearly" ? "ANNUAL" : "EVERY_30_DAYS",
-      }
-    }
-  }];
+  const price = interval === "yearly" ? plan.yearlyPrice : plan.monthlyPrice;
 
+  // Get the offline access token for this shop
+  const { prisma } = await import("../shopify.server");
+  const sessionRecord = await prisma.session.findFirst({
+    where: { shop, isOnline: false },
+    select: { accessToken: true },
+  });
+
+  if (!sessionRecord?.accessToken) {
+    return json({ error: "Session not found. Please reinstall the app.", confirmationUrl: null });
+  }
+
+  // Use Shopify REST API for recurring charges — works for draft apps on dev stores
   try {
-    // Try adapter billing first (handles token + redirect automatically)
-    const result = await billing.request({ plan: planName, isTest: IS_TEST, returnObject: true });
-    const confirmationUrl = (result as any)?.confirmationUrl ?? null;
-    if (confirmationUrl) return json({ confirmationUrl, error: null });
-    return redirect(`/app/pricing?shop=${shop}&host=${host}&billing=1`);
-  } catch (adapterErr: any) {
-    if (adapterErr instanceof Response) {
-      const location = (adapterErr as Response).headers.get("Location");
-      if (location) return json({ confirmationUrl: location, error: null });
-    }
-    // Fallback: raw GraphQL mutation — gives us the confirmationUrl directly
-    try {
-      const res = await admin.graphql(`
-        mutation AppSubscriptionCreate($name: String!, $returnUrl: String!, $lineItems: [AppSubscriptionLineItemInput!]!, $test: Boolean) {
-          appSubscriptionCreate(name: $name, returnUrl: $returnUrl, lineItems: $lineItems, test: $test) {
-            appSubscription { id }
-            confirmationUrl
-            userErrors { field message }
-          }
-        }
-      `, { variables: { name: planName, returnUrl, lineItems, test: IS_TEST } });
-      const body = await res.json();
-      const data = body?.data?.appSubscriptionCreate;
-      if (data?.userErrors?.length) {
-        return json({ error: data.userErrors.map((e: any) => e.message).join(", "), confirmationUrl: null });
+    const res = await fetch(
+      `https://${shop}/admin/api/2024-01/recurring_application_charges.json`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Shopify-Access-Token": sessionRecord.accessToken,
+        },
+        body: JSON.stringify({
+          recurring_application_charge: {
+            name: planName,
+            price,
+            return_url: returnUrl,
+            trial_days: 7,
+            test: IS_TEST,
+          },
+        }),
       }
-      if (data?.confirmationUrl) {
-        return json({ confirmationUrl: data.confirmationUrl, error: null });
-      }
-      return json({ error: `Could not start subscription. Adapter: ${adapterErr?.message || adapterErr}`, confirmationUrl: null });
-    } catch (gqlErr: any) {
-      return json({ error: `Billing error: ${adapterErr?.message || adapterErr}`, confirmationUrl: null });
+    );
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      const errMsg = data?.errors
+        ? (typeof data.errors === "string" ? data.errors : JSON.stringify(data.errors))
+        : `HTTP ${res.status}`;
+      return json({ error: `Billing error: ${errMsg}`, confirmationUrl: null });
     }
+
+    const confirmationUrl = data?.recurring_application_charge?.confirmation_url;
+    if (confirmationUrl) {
+      return json({ confirmationUrl, error: null });
+    }
+
+    return json({ error: "Could not get billing confirmation URL from Shopify.", confirmationUrl: null });
+  } catch (err: any) {
+    return json({ error: `Billing error: ${err?.message || err}`, confirmationUrl: null });
   }
 };
 
