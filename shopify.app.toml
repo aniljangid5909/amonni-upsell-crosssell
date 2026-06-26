@@ -9,7 +9,7 @@ embedded = true
   include_config_on_deploy = true
 
 [access_scopes]
-scopes = "read_orders,read_products,write_products,write_price_rules,read_price_rules"
+scopes = "read_orders,read_products,write_products,write_price_rules,read_price_rules,read_customers"
 
 [auth]
 redirect_urls = [
