@@ -232,6 +232,7 @@ export default function PricingPage() {
   const actionData = useActionData<{ confirmationUrl: string | null; error: string | null }>();
   const billingFetcher = useFetcher<{ confirmationUrl: string | null; error: string | null }>();
   const [subError, setSubError] = useState<string | null>(null);
+  const [subscribing, setSubscribing] = useState<string | null>(null);
   const loading = navigation.state !== "idle" || billingFetcher.state !== "idle";
 
   const qs = new URLSearchParams();
@@ -249,6 +250,7 @@ export default function PricingPage() {
 
   async function handleSubscribe(planId: string) {
     setSubError(null);
+    setSubscribing(planId);
     let idToken: string | null = null;
     try {
       const shopify = (window as any).shopify;
@@ -276,9 +278,11 @@ export default function PricingPage() {
         window.top!.location.href = data.confirmationUrl;
       } else {
         setSubError(data?.error || "Unknown billing error");
+        setSubscribing(null);
       }
     } catch (e: any) {
       setSubError(e?.message || String(e));
+      setSubscribing(null);
     }
   }
 
@@ -290,6 +294,8 @@ export default function PricingPage() {
   const yearlyDiscount = Math.round((1 - 15.99 / 19.99) * 100);
 
   return (
+    <>
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     <Page
       backAction={{ content: "Funnels", onAction: () => navigate(`/app/funnels${qsStr}`) }}
       title="Pricing plans"
@@ -515,7 +521,7 @@ export default function PricingPage() {
                     ) : (
                       <button
                         onClick={() => handleSubscribe(plan.id)}
-                        disabled={loading}
+                        disabled={subscribing !== null || loading}
                         style={{
                           width: "100%",
                           padding: "12px",
@@ -525,11 +531,29 @@ export default function PricingPage() {
                           color: "#fff",
                           fontWeight: 700,
                           fontSize: "14px",
-                          cursor: loading ? "wait" : "pointer",
+                          cursor: (subscribing !== null || loading) ? "wait" : "pointer",
                           fontFamily: "inherit",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          opacity: (subscribing !== null && subscribing !== plan.id) ? 0.6 : 1,
+                          transition: "opacity 0.2s",
                         }}
                       >
-                        {loading ? "Redirecting to Shopify..." : plan.cta}
+                        {subscribing === plan.id && (
+                          <span style={{
+                            width: "14px",
+                            height: "14px",
+                            border: "2px solid rgba(255,255,255,0.4)",
+                            borderTopColor: "#fff",
+                            borderRadius: "50%",
+                            display: "inline-block",
+                            animation: "spin 0.7s linear infinite",
+                            flexShrink: 0,
+                          }} />
+                        )}
+                        {subscribing === plan.id ? "Redirecting to Shopify..." : plan.cta}
                       </button>
                     )}
                   </div>
@@ -593,5 +617,6 @@ export default function PricingPage() {
         </Layout.Section>
       </Layout>
     </Page>
+    </>
   );
 }
