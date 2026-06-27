@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useEffect } from "react";
-import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner, Spinner } from "@shopify/polaris";
+import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { clearPlanCache } from "../plan.server";
 
@@ -294,6 +294,8 @@ export default function PricingPage() {
   const yearlyDiscount = Math.round((1 - 15.99 / 19.99) * 100);
 
   return (
+    <>
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     <Page
       backAction={{ content: "Funnels", onAction: () => navigate(`/app/funnels${qsStr}`) }}
       title="Pricing plans"
@@ -522,29 +524,42 @@ export default function PricingPage() {
                         disabled={subscribing !== null || loading}
                         style={{
                           width: "100%",
-                          padding: "12px",
-                          borderRadius: "10px",
+                          padding: "16px 24px",
+                          borderRadius: "50px",
                           border: "none",
-                          background: plan.highlight ? "#1a1a1a" : "#333",
+                          background: "#000",
                           color: "#fff",
-                          fontWeight: 700,
-                          fontSize: "14px",
-                          cursor: (subscribing !== null || loading) ? "wait" : "pointer",
+                          fontWeight: 600,
+                          fontSize: "15px",
+                          cursor: (subscribing !== null || loading) ? "not-allowed" : "pointer",
                           fontFamily: "inherit",
                           display: "flex",
                           alignItems: "center",
                           justifyContent: "center",
-                          gap: "8px",
-                          opacity: (subscribing !== null && subscribing !== plan.id) ? 0.6 : 1,
-                          transition: "opacity 0.2s",
+                          gap: "10px",
+                          opacity: (subscribing !== null && subscribing !== plan.id) ? 0.5 : 1,
+                          transition: "opacity 0.2s, background 0.2s",
+                          letterSpacing: "0.01em",
                         }}
+                        onMouseEnter={e => { if (subscribing === null) (e.currentTarget as HTMLButtonElement).style.background = "#222"; }}
+                        onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#000"; }}
                       >
-                        {subscribing === plan.id && (
-                          <span style={{ filter: "brightness(0) invert(1)", display: "flex" }}>
-                            <Spinner size="small" />
-                          </span>
+                        {subscribing === plan.id ? (
+                          <>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 0.7s linear infinite", flexShrink: 0 }}>
+                              <path d="M12 2a10 10 0 0 1 10 10" />
+                            </svg>
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                              <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/>
+                              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+                            </svg>
+                            {plan.cta}
+                          </>
                         )}
-                        {subscribing === plan.id ? "Redirecting to Shopify..." : plan.cta}
                       </button>
                     )}
                   </div>
@@ -608,5 +623,6 @@ export default function PricingPage() {
         </Layout.Section>
       </Layout>
     </Page>
+    </>
   );
 }

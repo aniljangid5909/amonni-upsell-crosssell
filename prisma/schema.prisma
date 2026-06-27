@@ -65,3 +65,27 @@ model FunnelEvent {
   revenue   Float?
   createdAt DateTime @default(now())
 }
+
+model ShopSettings {
+  id                   String   @id @default(cuid())
+  shop                 String   @unique
+
+  // Widget appearance
+  widgetPosition       String   @default("bottom-right")
+  accentColor          String   @default("#000000")
+  borderRadius         Int      @default(8)
+  showPoweredBy        Boolean  @default(true)
+
+  // Behavior
+  showOnMobile         Boolean  @default(true)
+  animationStyle       String   @default("slide")
+  autoCloseSeconds     Int      @default(0)
+
+  // Notifications
+  emailReports         Boolean  @default(false)
+  emailReportFrequency String   @default("weekly")
+  notificationEmail    String   @default("")
+
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+}

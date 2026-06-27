@@ -56,6 +56,7 @@ export default function AppLayout() {
         <a href={`/app/funnels/new${qs}`}>Create funnel</a>
         <a href={`/app/pricing${qs}`}>Pricing</a>
         <a href={`/app/storefront-preview${qs}`}>Storefront preview</a>
+        <a href={`/app/settings${qs}`}>Settings</a>
       </ui-nav-menu>
       <Outlet />
     </AppProvider>
