@@ -40,7 +40,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         subject_token_type: "urn:ietf:params:oauth:token-type:id_token",
         client_id: process.env.SHOPIFY_API_KEY!,
         client_secret: process.env.SHOPIFY_API_SECRET!,
-        requested_token_type: "urn:ietf:params:oauth:token-type:access_token",
+        requested_token_type: "urn:shopify:params:oauth:token-type:online-access-token",
       }).toString(),
     });
     const exchText = await exchRes.text();
