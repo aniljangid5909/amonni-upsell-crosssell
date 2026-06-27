@@ -2,7 +2,7 @@ import type { ActionFunctionArgs, LoaderFunctionArgs } from "@remix-run/node";
 import { json, redirect } from "@remix-run/node";
 import { useLoaderData, useSubmit, useNavigation, useActionData, useNavigate, useFetcher } from "@remix-run/react";
 import { useState, useEffect } from "react";
-import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner } from "@shopify/polaris";
+import { Page, Layout, Text, BlockStack, InlineStack, Box, Divider, Banner, Spinner } from "@shopify/polaris";
 import { authenticate } from "../shopify.server";
 import { clearPlanCache } from "../plan.server";
 
@@ -294,8 +294,6 @@ export default function PricingPage() {
   const yearlyDiscount = Math.round((1 - 15.99 / 19.99) * 100);
 
   return (
-    <>
-    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     <Page
       backAction={{ content: "Funnels", onAction: () => navigate(`/app/funnels${qsStr}`) }}
       title="Pricing plans"
@@ -542,16 +540,9 @@ export default function PricingPage() {
                         }}
                       >
                         {subscribing === plan.id && (
-                          <span style={{
-                            width: "14px",
-                            height: "14px",
-                            border: "2px solid rgba(255,255,255,0.4)",
-                            borderTopColor: "#fff",
-                            borderRadius: "50%",
-                            display: "inline-block",
-                            animation: "spin 0.7s linear infinite",
-                            flexShrink: 0,
-                          }} />
+                          <span style={{ filter: "brightness(0) invert(1)", display: "flex" }}>
+                            <Spinner size="small" />
+                          </span>
                         )}
                         {subscribing === plan.id ? "Redirecting to Shopify..." : plan.cta}
                       </button>
@@ -617,6 +608,5 @@ export default function PricingPage() {
         </Layout.Section>
       </Layout>
     </Page>
-    </>
   );
 }
