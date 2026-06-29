@@ -146,6 +146,24 @@ export const action = async ({ request }: ActionFunctionArgs) => {
   const formData = await request.formData();
   const _action = formData.get("_action") as string;
 
+  // Dev plan override
+  if (_action === "devPlan") {
+    const devPlan = formData.get("devPlan") as string;
+    try {
+      if (devPlan === "starter") {
+        await (await import("../shopify.server")).prisma.session.deleteMany({ where: { id: `__dev_plan_${shop}` } });
+      } else {
+        await (await import("../shopify.server")).prisma.session.upsert({
+          where: { id: `__dev_plan_${shop}` },
+          create: { id: `__dev_plan_${shop}`, shop, state: devPlan, isOnline: false, accessToken: "" },
+          update: { state: devPlan },
+        });
+      }
+      clearPlanCache(shop);
+    } catch (_) {}
+    return redirect(`/app/pricing?shop=${shop}&host=${host}`);
+  }
+
   // Cancel subscription
   if (_action === "cancel") {
     const subscriptionId = formData.get("subscriptionId") as string;
@@ -610,6 +628,49 @@ export default function PricingPage() {
             </BlockStack>
           </Box>
         </Layout.Section>
+
+        {/* ── Developer testing ── */}
+        {isTest && (
+          <Layout.Section>
+            <Box background="bg-surface-warning" borderRadius="300" padding="400" borderWidth="025" borderColor="border-warning">
+              <BlockStack gap="300">
+                <BlockStack gap="100">
+                  <Text variant="headingSm" as="h3">✺ Developer testing — bypass Shopify billing</Text>
+                  <Text variant="bodySm" tone="subdued" as="p">
+                    If the Billing API is blocked (403), use these buttons to simulate a plan upgrade locally for testing. This sets the plan in the server cache only — no real charge.
+                  </Text>
+                </BlockStack>
+                <InlineStack gap="200">
+                  {(["starter", "growth", "pro"] as const).map((p) => (
+                    <form key={p} method="post">
+                      <input type="hidden" name="_action" value="devPlan" />
+                      <input type="hidden" name="devPlan" value={p} />
+                      <input type="hidden" name="shop" value={shop} />
+                      <input type="hidden" name="host" value={host} />
+                      <button
+                        type="submit"
+                        style={{
+                          padding: "6px 16px",
+                          borderRadius: "8px",
+                          border: activePlan === p ? "2px solid #0c7a3e" : "1.5px solid #d0d0d0",
+                          background: activePlan === p ? "#e3f5eb" : "#fff",
+                          color: activePlan === p ? "#0c7a3e" : "#333",
+                          fontWeight: activePlan === p ? 700 : 500,
+                          fontSize: "13px",
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          textTransform: "capitalize",
+                        }}
+                      >
+                        {activePlan === p ? `✓ ${p}` : p.charAt(0).toUpperCase() + p.slice(1)}
+                      </button>
+                    </form>
+                  ))}
+                </InlineStack>
+              </BlockStack>
+            </Box>
+          </Layout.Section>
+        )}
 
         {/* ── Footer note ── */}
         <Layout.Section>
