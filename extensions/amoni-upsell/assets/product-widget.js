@@ -431,7 +431,7 @@
       }
 
       // Powered by Amoni branding
-      var showPoweredBy = el.dataset.showPoweredBy !== 'false';
+      var showPoweredBy = data.showPoweredBy !== false && el.dataset.showPoweredBy !== 'false';
       if (showPoweredBy) {
         var brandingEl = document.createElement('div');
         brandingEl.style.cssText = 'text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;';

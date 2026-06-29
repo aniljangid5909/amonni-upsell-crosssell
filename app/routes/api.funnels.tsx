@@ -21,10 +21,11 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (!shop) return json({ funnels: [] }, { headers: CORS });
 
-  // Check plan and enforce impression limit
-  const [plan, monthlyImpressions] = await Promise.all([
+  // Check plan, settings, and enforce impression limit
+  const [plan, monthlyImpressions, shopSettings] = await Promise.all([
     getCurrentPlanByToken(shop),
     getMonthlyImpressions(shop),
+    prisma.shopSettings.findUnique({ where: { shop } }),
   ]);
   const limits = PLAN_LIMITS[plan];
   if (isFinite(limits.maxImpressionsPerMonth) && monthlyImpressions >= limits.maxImpressionsPerMonth) {
@@ -52,7 +53,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return true;
   });
 
-  if (!matched.length) return json({ funnels: [] }, { headers: CORS });
+  if (!matched.length) return json({ funnels: [], showPoweredBy: true }, { headers: CORS });
 
   // Collect all offer product IDs across funnels (including multi-product funnels)
   const allOfferIds = [...new Set(matched.flatMap((f) => {
@@ -114,5 +115,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (result.length >= 10) break;
   }
 
-  return json({ funnels: result }, { headers: CORS });
+  const showPoweredBy = shopSettings?.showPoweredBy ?? true;
+  return json({ funnels: result, showPoweredBy }, { headers: CORS });
 };

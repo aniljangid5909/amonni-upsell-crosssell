@@ -239,6 +239,8 @@
     return card;
   }
 
+  var showPoweredBy = true;
+
   // ── Build widget HTML: carousel of all funnels ──
   function buildWidget(funnels) {
     var firstFunnel = funnels[0];
@@ -291,14 +293,16 @@
 
     wrapper.appendChild(carouselOuter);
 
-    // Powered by Amoni branding
-    var branding = document.createElement('div');
-    branding.style.cssText = 'text-align:center;margin-top:10px;padding-top:8px;border-top:1px solid #f0f0f0;';
-    branding.innerHTML = '<span style="font-size:10px;color:#ccc;letter-spacing:0.03em;vertical-align:middle;margin-right:4px;">Powered by</span>' +
-      '<a href="https://amoni.io" target="_blank" rel="noopener" style="display:inline-block;vertical-align:middle;">' +
-        '<img src="' + APP_URL + '/Amoni.png" alt="Amoni" style="height:14px;width:auto;opacity:0.5;vertical-align:middle;" />' +
-      '</a>';
-    wrapper.appendChild(branding);
+    // Powered by Amoni branding (respect shop setting)
+    if (showPoweredBy !== false) {
+      var branding = document.createElement('div');
+      branding.style.cssText = 'text-align:center;margin-top:10px;padding-top:8px;border-top:1px solid #f0f0f0;';
+      branding.innerHTML = '<span style="font-size:10px;color:#ccc;letter-spacing:0.03em;vertical-align:middle;margin-right:4px;">Powered by</span>' +
+        '<a href="https://amoni.io" target="_blank" rel="noopener" style="display:inline-block;vertical-align:middle;">' +
+          '<img src="' + APP_URL + '/Amoni.png" alt="Amoni" style="height:14px;width:auto;opacity:0.5;vertical-align:middle;" />' +
+        '</a>';
+      wrapper.appendChild(branding);
+    }
 
     return wrapper;
   }
@@ -368,6 +372,7 @@
           .then(function (r) { return r.json(); })
           .then(function (data) {
             var funnels = data.funnels || [];
+            showPoweredBy = data.showPoweredBy !== false;
             cachedCartHash = hash;
             if (!funnels.length) { cachedFunnel = null; cachedFunnels = null; return; }
             cachedFunnel = funnels[0];
