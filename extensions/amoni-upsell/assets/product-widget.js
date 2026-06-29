@@ -278,8 +278,8 @@
         var bundleBtn = document.createElement('button');
         bundleBtn.setAttribute('data-amoni-bundle', '1');
         bundleBtn.setAttribute('data-offer-variant', bundleFunnel.offerVariantId || '');
-        bundleBtn.style.cssText = 'width:100%;padding:12px 0;border-radius:10px;border:none;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;cursor:not-allowed;font-family:inherit;opacity:0.5;';
-        bundleBtn.disabled = true; // enabled by syncWidgetVisibility when trigger in cart
+        bundleBtn.style.cssText = 'width:100%;padding:12px 0;border-radius:10px;border:none;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;opacity:1;';
+        bundleBtn.disabled = false;
         bundleBtn.textContent = 'Add bundle to cart';
         bundleBtn.addEventListener('click', function () {
           var variantsToAdd = [];
@@ -497,17 +497,10 @@
             }
 
             if (!bundleBtn._amoniAdded) {
-              if (triggerInCart) {
-                bundleBtn.disabled = false;
-                bundleBtn.style.opacity = '1';
-                bundleBtn.style.cursor = 'pointer';
-                bundleBtn.title = '';
-              } else {
-                bundleBtn.disabled = true;
-                bundleBtn.style.opacity = '0.5';
-                bundleBtn.style.cursor = 'not-allowed';
-                bundleBtn.title = 'Add the main product to cart first';
-              }
+              bundleBtn.disabled = false;
+              bundleBtn.style.opacity = '1';
+              bundleBtn.style.cursor = 'pointer';
+              bundleBtn.title = '';
             }
           }
 
