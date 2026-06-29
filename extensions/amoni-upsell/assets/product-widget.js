@@ -300,7 +300,7 @@
             fetch(APP_URL + '/api/events', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ funnelId: bundleFunnel.id, shop: shop, eventType: 'accept' }),
+              body: JSON.stringify({ funnelId: (bundleFunnel.funnelId || bundleFunnel.id), shop: shop, eventType: 'accept' }),
             });
           }, function () {
             bundleBtn.textContent = 'Error — try again';
@@ -372,7 +372,7 @@
               fetch(APP_URL + '/api/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ funnelId: funnel.id, shop: shop, eventType: 'accept' }),
+                body: JSON.stringify({ funnelId: (funnel.funnelId || funnel.id), shop: shop, eventType: 'accept' }),
               });
             }, function () {
               addBtn.textContent = 'Error';
@@ -542,7 +542,7 @@
       fetch(APP_URL + '/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ funnelId: firstFunnel.id, shop: shop, eventType: 'impression' }),
+        body: JSON.stringify({ funnelId: (firstFunnel.funnelId || firstFunnel.id), shop: shop, eventType: 'impression' }),
       });
     })
     .catch(function () {});

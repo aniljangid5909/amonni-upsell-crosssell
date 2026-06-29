@@ -218,7 +218,7 @@
           btn.style.background = '#0c8a4f';
           fetch(APP_URL + '/api/events', {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ funnelId: funnel.id, shop: SHOP, eventType: 'accept' }),
+            body: JSON.stringify({ funnelId: (funnel.funnelId || funnel.id), shop: SHOP, eventType: 'accept' }),
           });
           refreshBadge();
           cachedCartHash = '';
@@ -340,7 +340,7 @@
 
     fetch(APP_URL + '/api/events', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ funnelId: funnels[0].id, shop: SHOP, eventType: 'impression' }),
+      body: JSON.stringify({ funnelId: (funnels[0].funnelId || funnels[0].id), shop: SHOP, eventType: 'impression' }),
     });
 
     isInjecting = false;

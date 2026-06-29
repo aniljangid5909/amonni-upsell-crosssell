@@ -159,7 +159,7 @@
               fetch(APP_URL + '/api/events', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ funnelId: funnel.id, shop: shop, eventType: 'accept' }),
+                body: JSON.stringify({ funnelId: (funnel.funnelId || funnel.id), shop: shop, eventType: 'accept' }),
               });
 
               showToast(funnel.offerTitle || 'Item', funnel.offerImageUrl || '');
@@ -177,7 +177,7 @@
       fetch(APP_URL + '/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ funnelId: funnel.id, shop: shop, eventType: 'impression' }),
+        body: JSON.stringify({ funnelId: (funnel.funnelId || funnel.id), shop: shop, eventType: 'impression' }),
       });
     })
     .catch(function () {});
