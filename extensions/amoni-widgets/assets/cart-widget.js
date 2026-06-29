@@ -6,7 +6,7 @@
   var cartItems = (el.dataset.cartItems || '').split(',').filter(Boolean);
   if (!cartItems.length) return;
 
-  var APP_URL = el.dataset.appUrl || '';
+  var APP_URL = el.dataset.appUrl || 'https://amoni-upsell-cross-sell.vercel.app';
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=cart&productIds=' + cartItems.join(','))
     .then(function (r) { return r.json(); })

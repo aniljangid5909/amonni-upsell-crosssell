@@ -4,7 +4,7 @@
 
   var shop = el.dataset.shop;
   var productId = el.dataset.productId;
-  var APP_URL = el.dataset.appUrl || '';
+  var APP_URL = el.dataset.appUrl || 'https://amoni-upsell-cross-sell.vercel.app';
 
   fetch(APP_URL + '/api/funnels?shop=' + encodeURIComponent(shop) + '&placement=product&productIds=' + productId)
     .then(function (r) { return r.json(); })
