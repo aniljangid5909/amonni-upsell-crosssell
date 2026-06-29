@@ -104,6 +104,12 @@
       var headingEl = el.querySelector('div:first-child');
       if (headingEl) headingEl.textContent = heading;
 
+      var brandingHtml = '<div style="text-align:center;margin-top:12px;padding-top:8px;border-top:1px solid rgba(200,116,90,0.15);">' +
+        '<span style="font-size:10px;color:#ccc;letter-spacing:0.03em;vertical-align:middle;margin-right:4px;">Powered by</span>' +
+        '<a href="https://amoni.io" target="_blank" rel="noopener" style="display:inline-block;vertical-align:middle;">' +
+          '<img src="' + APP_URL + '/Amoni.png" alt="Amoni" style="height:14px;width:auto;opacity:0.5;vertical-align:middle;" />' +
+        '</a></div>';
+
       var content = document.getElementById('amoni-cart-offer-content');
       content.innerHTML =
         (subtext ? '<div style="font-size:12px;color:#b05e42;margin-bottom:10px;">' + subtext + '</div>' : '') +
@@ -121,7 +127,8 @@
             '</div>' +
           '</div>' +
           '<button id="amoni-cart-add-btn" style="padding:9px 14px;border-radius:8px;border:none;background:#c8745a;color:#fff;font-weight:700;font-size:13px;cursor:pointer;white-space:nowrap;font-family:inherit;">Add</button>' +
-        '</div>';
+        '</div>' +
+        brandingHtml;
 
       var btn = document.getElementById('amoni-cart-add-btn');
       if (btn) {
@@ -163,21 +170,6 @@
               btn.disabled = false;
             });
         });
-      }
-
-      // Powered by Amoni branding — inside the content area
-      var showPoweredBy = el.dataset.showPoweredBy !== 'false';
-      if (showPoweredBy) {
-        var existingBranding = el.querySelector('.amoni-branding');
-        if (!existingBranding) {
-          var brandingEl = document.createElement('div');
-          brandingEl.className = 'amoni-branding';
-          brandingEl.style.cssText = 'text-align:center;margin-top:12px;padding-top:8px;border-top:1px solid rgba(200,116,90,0.15);';
-          brandingEl.innerHTML = '<span style="font-size:10px;color:#ccc;letter-spacing:0.03em;vertical-align:middle;margin-right:4px;">Powered by</span><a href="https://amoni.io" target="_blank" rel="noopener" style="display:inline-block;vertical-align:middle;"><img src="' + APP_URL + '/Amoni.png" alt="Amoni" style="height:14px;width:auto;opacity:0.45;vertical-align:middle;" /></a>';
-          var content = document.getElementById('amoni-cart-offer-content');
-          if (content) content.appendChild(brandingEl);
-          else el.appendChild(brandingEl);
-        }
       }
 
       el.style.display = 'block';
