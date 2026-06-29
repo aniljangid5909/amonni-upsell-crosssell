@@ -6,7 +6,6 @@ embedded = true
 [build]
   automatically_update_urls_on_dev = true
   dev_store_url = "amoni-apps.myshopify.com"
-  include_config_on_deploy = true
 
 [access_scopes]
 scopes = "read_orders,read_products,write_products,write_price_rules,read_price_rules,read_customers"

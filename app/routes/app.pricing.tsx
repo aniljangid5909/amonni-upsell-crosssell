@@ -8,7 +8,7 @@ import { clearPlanCache } from "../plan.server";
 
 // isTest = true enables Shopify's bogus gateway so no real charges occur during testing
 const IS_TEST = process.env.SHOPIFY_BILLING_TEST !== "false";
-
+git pull origin claude/wizardly-ride-bBuzl --rebase
 // ── Plan definitions ──────────────────────────────────────────────────────────
 const PLANS = [
   {
