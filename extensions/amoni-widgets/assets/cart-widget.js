@@ -44,6 +44,15 @@
           '</button>' +
         '</div>';
 
+      // Powered by Amoni branding
+      var showPoweredBy = el.dataset.showPoweredBy !== 'false';
+      if (showPoweredBy) {
+        var brandingEl = document.createElement('div');
+        brandingEl.style.cssText = 'text-align:center;margin-top:10px;font-size:11px;color:#bbb;letter-spacing:0.02em;';
+        brandingEl.innerHTML = 'Powered by <a href="https://amoni.io" target="_blank" rel="noopener" style="color:#bbb;text-decoration:none;font-weight:600;">Amoni</a>';
+        el.appendChild(brandingEl);
+      }
+
       el.style.display = 'block';
 
       // Track impression
