@@ -48,8 +48,8 @@
       var showPoweredBy = el.dataset.showPoweredBy !== 'false';
       if (showPoweredBy) {
         var brandingEl = document.createElement('div');
-        brandingEl.style.cssText = 'text-align:center;margin-top:12px;padding-top:10px;border-top:1px solid #f0f0f0;';
-        brandingEl.innerHTML = '<span style="font-size:10px;color:#ccc;letter-spacing:0.03em;vertical-align:middle;margin-right:5px;">Powered by</span><a href="https://amoni.io" target="_blank" rel="noopener" style="display:inline-block;vertical-align:middle;"><img src="' + APP_URL + '/Amoni.png" alt="Amoni" style="height:16px;width:auto;opacity:0.5;vertical-align:middle;" /></a>';
+        brandingEl.style.cssText = 'text-align:center;margin-top:12px;padding-top:8px;border-top:1px solid #f0f0f0;';
+        brandingEl.innerHTML = '<span style="font-size:10px;color:#ccc;letter-spacing:0.03em;vertical-align:middle;margin-right:4px;">Powered by</span><a href="https://amoni.io" target="_blank" rel="noopener" style="display:inline-block;vertical-align:middle;"><img src="' + APP_URL + '/Amoni.png" alt="Amoni" style="height:14px;width:auto;opacity:0.45;vertical-align:middle;" /></a>';
         el.appendChild(brandingEl);
       }
 
