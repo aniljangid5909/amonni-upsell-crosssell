@@ -87,9 +87,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
             price: parseFloat(p.variants?.[0]?.price || "0"),
           };
         });
+      } else {
+        console.error("[amoni/funnels] Shopify products API error:", res.status, await res.text());
       }
     }
-  } catch (_) {}
+  } catch (err) {
+    console.error("[amoni/funnels] Product lookup failed:", err);
+  }
 
   // Expand multi-product funnels into individual offer entries
   const result: object[] = [];
@@ -102,7 +106,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
         id: `${f.id}_${i}`,
         funnelId: f.id,
         offerType: f.offerType,
-        offerTitle: pd?.title || (i === 0 ? (f.offerTitle || f.name) : `Product ${pid}`),
+        offerTitle: pd?.title || f.offerTitle || "",
         offerProductId: pid,
         offerImageUrl: pd?.imageUrl || (i === 0 ? f.offerImageUrl : ""),
         offerVariantId: pd?.variantId || (i === 0 ? f.offerVariantId : ""),
