@@ -290,6 +290,16 @@
     }
 
     wrapper.appendChild(carouselOuter);
+
+    // Powered by Amoni branding
+    var branding = document.createElement('div');
+    branding.style.cssText = 'text-align:center;margin-top:10px;padding-top:8px;border-top:1px solid #f0f0f0;';
+    branding.innerHTML = '<span style="font-size:10px;color:#ccc;letter-spacing:0.03em;vertical-align:middle;margin-right:4px;">Powered by</span>' +
+      '<a href="https://amoni.io" target="_blank" rel="noopener" style="display:inline-block;vertical-align:middle;">' +
+        '<img src="' + APP_URL + '/Amoni.png" alt="Amoni" style="height:14px;width:auto;opacity:0.5;vertical-align:middle;" />' +
+      '</a>';
+    wrapper.appendChild(branding);
+
     return wrapper;
   }
 
