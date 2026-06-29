@@ -115,6 +115,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (result.length >= 10) break;
   }
 
-  const showPoweredBy = shopSettings?.showPoweredBy ?? true;
+  // Only Pro plan can hide the branding; all other plans always show it
+  const showPoweredBy = plan === 'pro' ? (shopSettings?.showPoweredBy ?? true) : true;
   return json({ funnels: result, showPoweredBy }, { headers: CORS });
 };
