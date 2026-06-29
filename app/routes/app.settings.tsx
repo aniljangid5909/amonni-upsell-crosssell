@@ -45,7 +45,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     widgetPosition: formData.get("widgetPosition") as string,
     accentColor: isGrowthPlus ? (formData.get("accentColor") as string) : "#000000",
     borderRadius: parseInt(formData.get("borderRadius") as string, 10),
-    showPoweredBy: isGrowthPlus ? formData.get("showPoweredBy") === "true" : true,
+    showPoweredBy: isPro ? formData.get("showPoweredBy") === "true" : true,
     showOnMobile: formData.get("showOnMobile") === "true",
     animationStyle: isGrowthPlus ? (formData.get("animationStyle") as string) : "none",
     autoCloseSeconds: parseInt(formData.get("autoCloseSeconds") as string, 10),
@@ -154,7 +154,7 @@ export default function SettingsPage() {
                     </InlineStack>
                     <Text as="p" variant="bodySm" tone="subdued">
                       {plan === "starter" && "Upgrade to Growth or Pro to unlock appearance customisation and more."}
-                      {plan === "growth" && "Upgrade to Pro to unlock email reports."}
+                      {plan === "growth" && "Upgrade to Pro to unlock email reports and remove the Amoni badge."}
                       {plan === "pro" && "All settings are available on your Pro plan."}
                     </Text>
                   </BlockStack>
@@ -216,11 +216,11 @@ export default function SettingsPage() {
                       onChange={setWidgetPosition}
                     />
 
-                    {/* Powered by badge — Growth+ */}
-                    {isGrowthPlus ? (
+                    {/* Powered by badge — Pro only */}
+                    {isPro ? (
                       <Checkbox
                         label='Show "Powered by Amoni" badge'
-                        helpText={isPro ? 'Pro plan: badge can be hidden for a white-label experience.' : 'Growth plan: you can hide the badge.'}
+                        helpText="Pro plan: badge can be hidden for a white-label experience."
                         checked={showPoweredBy}
                         onChange={setShowPoweredBy}
                       />
@@ -232,7 +232,7 @@ export default function SettingsPage() {
                           onChange={() => {}}
                           disabled
                         />
-                        <LockedNote label='Hiding the badge' plan="Growth" />
+                        <LockedNote label='Removing the badge' plan="Pro" />
                       </BlockStack>
                     )}
 
