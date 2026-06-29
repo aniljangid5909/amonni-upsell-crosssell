@@ -161,7 +161,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       }
       clearPlanCache(shop);
     } catch (_) {}
-    return redirect(`/app/pricing?shop=${shop}&host=${host}`);
+    return json({ ok: true });
   }
 
   // Cancel subscription
@@ -249,6 +249,7 @@ export default function PricingPage() {
   const navigation = useNavigation();
   const actionData = useActionData<{ confirmationUrl: string | null; error: string | null }>();
   const billingFetcher = useFetcher<{ confirmationUrl: string | null; error: string | null }>();
+  const devFetcher = useFetcher<{ ok: boolean }>();
   const [subError, setSubError] = useState<string | null>(null);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const loading = navigation.state !== "idle" || billingFetcher.state !== "idle";
@@ -265,6 +266,13 @@ export default function PricingPage() {
       setSubError(billingFetcher.data.error);
     }
   }, [billingFetcher.data]);
+
+  // Reload page after dev plan override so activePlan badge updates
+  useEffect(() => {
+    if (devFetcher.state === "idle" && devFetcher.data?.ok) {
+      navigate(`/app/pricing?shop=${shop}&host=${host}`, { replace: true });
+    }
+  }, [devFetcher.state, devFetcher.data]);
 
   async function handleSubscribe(planId: string) {
     setSubError(null);
@@ -642,29 +650,32 @@ export default function PricingPage() {
                 </BlockStack>
                 <InlineStack gap="200">
                   {(["starter", "growth", "pro"] as const).map((p) => (
-                    <form key={p} method="post">
-                      <input type="hidden" name="_action" value="devPlan" />
-                      <input type="hidden" name="devPlan" value={p} />
-                      <input type="hidden" name="shop" value={shop} />
-                      <input type="hidden" name="host" value={host} />
-                      <button
-                        type="submit"
-                        style={{
-                          padding: "6px 16px",
-                          borderRadius: "8px",
-                          border: activePlan === p ? "2px solid #0c7a3e" : "1.5px solid #d0d0d0",
-                          background: activePlan === p ? "#e3f5eb" : "#fff",
-                          color: activePlan === p ? "#0c7a3e" : "#333",
-                          fontWeight: activePlan === p ? 700 : 500,
-                          fontSize: "13px",
-                          cursor: "pointer",
-                          fontFamily: "inherit",
-                          textTransform: "capitalize",
-                        }}
-                      >
-                        {activePlan === p ? `✓ ${p}` : p.charAt(0).toUpperCase() + p.slice(1)}
-                      </button>
-                    </form>
+                    <button
+                      key={p}
+                      disabled={devFetcher.state !== "idle"}
+                      onClick={() => {
+                        const fd = new FormData();
+                        fd.set("_action", "devPlan");
+                        fd.set("devPlan", p);
+                        fd.set("shop", shop);
+                        fd.set("host", host);
+                        devFetcher.submit(fd, { method: "post" });
+                      }}
+                      style={{
+                        padding: "6px 16px",
+                        borderRadius: "8px",
+                        border: activePlan === p ? "2px solid #0c7a3e" : "1.5px solid #d0d0d0",
+                        background: activePlan === p ? "#e3f5eb" : "#fff",
+                        color: activePlan === p ? "#0c7a3e" : "#333",
+                        fontWeight: activePlan === p ? 700 : 500,
+                        fontSize: "13px",
+                        cursor: devFetcher.state !== "idle" ? "wait" : "pointer",
+                        fontFamily: "inherit",
+                        textTransform: "capitalize",
+                      }}
+                    >
+                      {activePlan === p ? `✓ ${p}` : p.charAt(0).toUpperCase() + p.slice(1)}
+                    </button>
                   ))}
                 </InlineStack>
               </BlockStack>
