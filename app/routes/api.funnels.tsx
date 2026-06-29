@@ -55,10 +55,13 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   if (!matched.length) return json({ funnels: [], showPoweredBy: true }, { headers: CORS });
 
+  // Normalize a product ID — strip GID prefix if present
+  const toNumericId = (id: string) => id.replace(/^gid:\/\/shopify\/Product\//, "");
+
   // Collect all offer product IDs across funnels (including multi-product funnels)
   const allOfferIds = [...new Set(matched.flatMap((f) => {
     const ids = f.offerProductIds && f.offerProductIds.length > 0 ? f.offerProductIds : (f.offerProductId ? [f.offerProductId] : []);
-    return ids;
+    return ids.map(toNumericId);
   }).filter(Boolean))];
 
   const productData: Record<string, { title: string; imageUrl: string; variantId: string; price: number }> = {};
@@ -94,7 +97,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     const ids = f.offerProductIds && f.offerProductIds.length > 0 ? f.offerProductIds : (f.offerProductId ? [f.offerProductId] : []);
     for (let i = 0; i < ids.length; i++) {
       const pid = ids[i];
-      const pd = productData[pid];
+      const pd = productData[toNumericId(pid)];
       result.push({
         id: `${f.id}_${i}`,
         funnelId: f.id,
