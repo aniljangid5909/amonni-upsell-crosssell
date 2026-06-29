@@ -40,8 +40,26 @@
     else if (dialog) dialog.removeAttribute('hidden');
   }
 
+  function clearDiscountIfVariantGone(cartItems) {
+    try {
+      var stored = sessionStorage.getItem('amoni_discount');
+      if (!stored) return;
+      var info = JSON.parse(stored);
+      var variantIds = (cartItems || []).map(function (i) { return String(i.variant_id); });
+      if (variantIds.indexOf(String(info.variantId)) === -1) {
+        sessionStorage.removeItem('amoni_discount');
+        fetch('/cart/update.js', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ discount: '' }),
+        }).catch(function () {});
+      }
+    } catch (e) {}
+  }
+
   function refreshBadge() {
     fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
+      clearDiscountIfVariantGone(cart.items);
       document.querySelectorAll('cart-count,[data-cart-count],.cart-count,#cart-count,.CartCount,.cart-item-count')
         .forEach(function (b) { b.textContent = cart.item_count; });
     }).catch(function () {});
@@ -57,7 +75,7 @@
     return offerPrice;
   }
 
-  function addToCart(variantIds, discountCode, onSuccess, onError) {
+  function addToCart(variantIds, discountCode, onSuccess, onError, offerVariantId) {
     var items = variantIds.filter(Boolean).map(function (id) {
       return { id: parseInt(id, 10), quantity: 1 };
     });
@@ -84,6 +102,7 @@
       })
       .then(function (addData) {
         if (discountCode) {
+          try { sessionStorage.setItem('amoni_discount', JSON.stringify({ code: discountCode, variantId: offerVariantId || '' })); } catch(e) {}
           return fetch('/cart/update.js', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -305,7 +324,7 @@
           }, function () {
             bundleBtn.textContent = 'Error — try again';
             bundleBtn.disabled = false;
-          });
+          }, bundleFunnel.offerVariantId);
         });
         bundleWrap.appendChild(bundleBtn);
         container.appendChild(bundleWrap);
@@ -377,7 +396,7 @@
             }, function () {
               addBtn.textContent = 'Error';
               addBtn.disabled = false;
-            });
+            }, funnel.offerVariantId);
           });
           card.appendChild(addBtn);
 
@@ -448,6 +467,7 @@
       function syncWidgetVisibility() {
         fetch('/cart.js').then(function (r) { return r.json(); }).then(function (cart) {
           var items = cart.items || [];
+          clearDiscountIfVariantGone(items);
           var variantIds = items.map(function (i) { return String(i.variant_id); });
           var cartProductIds = items.map(function (i) { return String(i.product_id); });
 
