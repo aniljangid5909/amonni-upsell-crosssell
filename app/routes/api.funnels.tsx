@@ -124,5 +124,8 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
 
   // Only Pro plan can hide the branding; all other plans always show it
   const showPoweredBy = plan === 'pro' ? (shopSettings?.showPoweredBy ?? true) : true;
-  return json({ funnels: result, showPoweredBy }, { headers: CORS });
+  const buttonColor = (plan === 'growth' || plan === 'pro') ? (shopSettings?.buttonColor ?? '#1a1a1a') : '#1a1a1a';
+  const buttonTextColor = plan === 'pro' ? (shopSettings?.buttonTextColor ?? '#ffffff') : '#ffffff';
+  const widgetBgColor = plan === 'pro' ? (shopSettings?.widgetBgColor ?? '#ffffff') : '#ffffff';
+  return json({ funnels: result, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor }, { headers: CORS });
 };

@@ -75,6 +75,9 @@ model ShopSettings {
   accentColor          String   @default("#000000")
   borderRadius         Int      @default(8)
   showPoweredBy        Boolean  @default(true)
+  buttonColor          String   @default("#1a1a1a")
+  buttonTextColor      String   @default("#ffffff")
+  widgetBgColor        String   @default("#ffffff")
 
   // Behavior
   showOnMobile         Boolean  @default(true)

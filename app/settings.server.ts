@@ -15,6 +15,9 @@ export async function updateShopSettings(
     accentColor: string;
     borderRadius: number;
     showPoweredBy: boolean;
+    buttonColor: string;
+    buttonTextColor: string;
+    widgetBgColor: string;
     showOnMobile: boolean;
     animationStyle: string;
     autoCloseSeconds: number;

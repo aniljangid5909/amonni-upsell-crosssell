@@ -52,6 +52,9 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     emailReports: isPro ? formData.get("emailReports") === "true" : false,
     emailReportFrequency: formData.get("emailReportFrequency") as string,
     notificationEmail: isPro ? (formData.get("notificationEmail") as string) : "",
+    buttonColor: isGrowthPlus ? (formData.get("buttonColor") as string) : "#1a1a1a",
+    buttonTextColor: isPro ? (formData.get("buttonTextColor") as string) : "#ffffff",
+    widgetBgColor: isPro ? (formData.get("widgetBgColor") as string) : "#ffffff",
   });
 
   return json({ success: true });
@@ -94,6 +97,9 @@ export default function SettingsPage() {
   const [borderRadius, setBorderRadius] = useState(String(settings.borderRadius));
   const [widgetPosition, setWidgetPosition] = useState(settings.widgetPosition);
   const [showPoweredBy, setShowPoweredBy] = useState(settings.showPoweredBy);
+  const [buttonColor, setButtonColor] = useState((settings as any).buttonColor || "#1a1a1a");
+  const [buttonTextColor, setButtonTextColor] = useState((settings as any).buttonTextColor || "#ffffff");
+  const [widgetBgColor, setWidgetBgColor] = useState((settings as any).widgetBgColor || "#ffffff");
 
   // Behavior
   const [showOnMobile, setShowOnMobile] = useState(settings.showOnMobile);
@@ -117,6 +123,9 @@ export default function SettingsPage() {
     formData.set("accentColor", accentColor);
     formData.set("borderRadius", borderRadius);
     formData.set("showPoweredBy", String(showPoweredBy));
+    formData.set("buttonColor", buttonColor);
+    formData.set("buttonTextColor", buttonTextColor);
+    formData.set("widgetBgColor", widgetBgColor);
     formData.set("showOnMobile", String(showOnMobile));
     formData.set("animationStyle", animationStyle);
     formData.set("autoCloseSeconds", autoCloseSeconds);
@@ -124,7 +133,7 @@ export default function SettingsPage() {
     formData.set("emailReportFrequency", emailReportFrequency);
     formData.set("notificationEmail", notificationEmail);
     fetcher.submit(formData, { method: "post" });
-  }, [fetcher, widgetPosition, accentColor, borderRadius, showPoweredBy, showOnMobile, animationStyle, autoCloseSeconds, emailReports, emailReportFrequency, notificationEmail]);
+  }, [fetcher, widgetPosition, accentColor, borderRadius, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor, showOnMobile, animationStyle, autoCloseSeconds, emailReports, emailReportFrequency, notificationEmail]);
 
   const card = {
     background: "bg-surface" as const,
@@ -190,6 +199,72 @@ export default function SettingsPage() {
                         </InlineStack>
                       ) : (
                         <LockedNote label="Custom accent color" plan="Growth" />
+                      )}
+                    </BlockStack>
+
+                    {/* Button color — Growth+ */}
+                    <BlockStack gap="200">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="p" variant="bodyMd">Button color</Text>
+                        {!isGrowthPlus && <Badge tone="warning">Growth+</Badge>}
+                      </InlineStack>
+                      {isGrowthPlus ? (
+                        <InlineStack gap="300" blockAlign="center">
+                          <input
+                            type="color"
+                            value={buttonColor}
+                            onChange={(e) => setButtonColor(e.target.value)}
+                            style={{ width: 40, height: 40, border: "1px solid #c9cccf", borderRadius: 6, cursor: "pointer", padding: 2, backgroundColor: "transparent" }}
+                          />
+                          <Text as="span" variant="bodyMd" tone="subdued">{buttonColor}</Text>
+                          <div style={{ width: 80, height: 32, borderRadius: 6, background: buttonColor, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ color: buttonTextColor, fontSize: 12, fontWeight: 600 }}>Add</span>
+                          </div>
+                        </InlineStack>
+                      ) : (
+                        <LockedNote label="Custom button color" plan="Growth" />
+                      )}
+                    </BlockStack>
+
+                    {/* Button text color — Pro */}
+                    <BlockStack gap="200">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="p" variant="bodyMd">Button text color</Text>
+                        {!isPro && <Badge tone="info">Pro</Badge>}
+                      </InlineStack>
+                      {isPro ? (
+                        <InlineStack gap="300" blockAlign="center">
+                          <input
+                            type="color"
+                            value={buttonTextColor}
+                            onChange={(e) => setButtonTextColor(e.target.value)}
+                            style={{ width: 40, height: 40, border: "1px solid #c9cccf", borderRadius: 6, cursor: "pointer", padding: 2, backgroundColor: "transparent" }}
+                          />
+                          <Text as="span" variant="bodyMd" tone="subdued">{buttonTextColor}</Text>
+                        </InlineStack>
+                      ) : (
+                        <LockedNote label="Custom button text color" plan="Pro" />
+                      )}
+                    </BlockStack>
+
+                    {/* Widget background color — Pro */}
+                    <BlockStack gap="200">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="p" variant="bodyMd">Widget background color</Text>
+                        {!isPro && <Badge tone="info">Pro</Badge>}
+                      </InlineStack>
+                      {isPro ? (
+                        <InlineStack gap="300" blockAlign="center">
+                          <input
+                            type="color"
+                            value={widgetBgColor}
+                            onChange={(e) => setWidgetBgColor(e.target.value)}
+                            style={{ width: 40, height: 40, border: "1px solid #c9cccf", borderRadius: 6, cursor: "pointer", padding: 2, backgroundColor: "transparent" }}
+                          />
+                          <Text as="span" variant="bodyMd" tone="subdued">{widgetBgColor}</Text>
+                        </InlineStack>
+                      ) : (
+                        <LockedNote label="Custom widget background" plan="Pro" />
                       )}
                     </BlockStack>
 

@@ -160,7 +160,7 @@
         '<div style="font-size:12px;font-weight:600;color:#1a1a1a;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;margin-bottom:4px;">' + (funnel.offerTitle || '') + '</div>' +
         '<div style="margin-bottom:6px;">' + priceHtml + '</div>' +
       '</div>' +
-      '<button data-amoni-add style="padding:7px 14px;border-radius:20px;border:none;background:#1a1a1a;color:#fff;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;">Add</button>';
+      '<button data-amoni-add style="padding:7px 14px;border-radius:20px;border:none;background:' + buttonColor + ';color:' + buttonTextColor + ';font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;font-family:inherit;flex-shrink:0;">Add</button>';
 
     var btn = card.querySelector('[data-amoni-add]');
     btn.addEventListener('click', function () {
@@ -243,6 +243,9 @@
   }
 
   var showPoweredBy = true;
+  var buttonColor = '#1a1a1a';
+  var buttonTextColor = '#ffffff';
+  var widgetBgColor = '#ffffff';
 
   // ── Clear discount if the discounted variant was removed from cart ──
   function checkAndClearDiscount(cartItems) {
@@ -273,7 +276,7 @@
 
     var wrapper = document.createElement('div');
     wrapper.id = WIDGET_ID;
-    wrapper.style.cssText = 'padding:12px 16px;border-top:1px solid #e8e8e8;background:#fff;';
+    wrapper.style.cssText = 'padding:12px 16px;border-top:1px solid #e8e8e8;background:' + widgetBgColor + ';';
 
     // Heading
     var headingEl = document.createElement('div');
@@ -395,6 +398,9 @@
           .then(function (data) {
             var funnels = data.funnels || [];
             showPoweredBy = data.showPoweredBy !== false;
+            if (data.buttonColor) buttonColor = data.buttonColor;
+            if (data.buttonTextColor) buttonTextColor = data.buttonTextColor;
+            if (data.widgetBgColor) widgetBgColor = data.widgetBgColor;
             cachedCartHash = hash;
             if (!funnels.length) { cachedFunnel = null; cachedFunnels = null; return; }
             cachedFunnel = funnels[0];

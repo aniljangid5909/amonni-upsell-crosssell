@@ -192,13 +192,17 @@
       var funnels = data.funnels || [];
       if (!funnels.length) return;
 
+      var btnColor = data.buttonColor || '#1a1a1a';
+      var btnTextColor = data.buttonTextColor || '#ffffff';
+      var bgColor = data.widgetBgColor || '#ffffff';
+
       var firstFunnel = funnels[0];
       var type = firstFunnel.offerType || 'bundle';
       var displayStyle = firstFunnel.displayStyle || 'carousel';
 
       // ── Widget outer container ──
       var container = document.createElement('div');
-      container.style.cssText = 'background:#fff;border:1px solid #e8e8e8;border-radius:14px;padding:20px;margin-top:20px;font-family:inherit;';
+      container.style.cssText = 'background:' + bgColor + ';border:1px solid #e8e8e8;border-radius:14px;padding:20px;margin-top:20px;font-family:inherit;';
 
       // ── Heading ──
       var heading =
@@ -297,7 +301,7 @@
         var bundleBtn = document.createElement('button');
         bundleBtn.setAttribute('data-amoni-bundle', '1');
         bundleBtn.setAttribute('data-offer-variant', bundleFunnel.offerVariantId || '');
-        bundleBtn.style.cssText = 'width:100%;padding:12px 0;border-radius:10px;border:none;background:#1a1a1a;color:#fff;font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;opacity:1;';
+        bundleBtn.style.cssText = 'width:100%;padding:12px 0;border-radius:10px;border:none;background:' + btnColor + ';color:' + btnTextColor + ';font-size:15px;font-weight:700;cursor:pointer;font-family:inherit;opacity:1;';
         bundleBtn.disabled = false;
         bundleBtn.textContent = 'Add bundle to cart';
         bundleBtn.addEventListener('click', function () {
@@ -374,7 +378,7 @@
           var addBtn = document.createElement('button');
           addBtn.setAttribute('data-amoni-add', '1');
           addBtn.setAttribute('data-offer-variant', funnel.offerVariantId || '');
-          addBtn.style.cssText = 'padding:7px 16px;border-radius:20px;border:none;background:#1a1a1a;color:#fff;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;opacity:0.4;';
+          addBtn.style.cssText = 'padding:7px 16px;border-radius:20px;border:none;background:' + btnColor + ';color:' + btnTextColor + ';font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;opacity:0.4;';
           addBtn.disabled = true; // disabled until syncWidgetVisibility confirms trigger in cart
           addBtn.textContent = 'Add';
           addBtn.addEventListener('click', function () {
