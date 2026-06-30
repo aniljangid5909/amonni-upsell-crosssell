@@ -570,20 +570,38 @@ export default function SettingsPage() {
                 </BlockStack>
               </Box>
 
-              {/* Live Preview */}
+              {/* Save */}
+              <Box paddingBlockEnd="800">
+              <InlineStack align="end">
+                <Button
+                  variant="primary"
+                  onClick={handleSubmit}
+                  loading={isSubmitting}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Saving..." : "Save Settings"}
+                </Button>
+              </InlineStack>
+              </Box>
+
+            </BlockStack>
+          </Layout.Section>
+
+          <Layout.Section variant="oneThird">
+            <div style={{ position: "sticky", top: 16 }}>
               <Box {...card}>
                 <BlockStack gap="400">
                   <InlineStack align="space-between" blockAlign="center">
                     <Text as="h2" variant="headingMd">Widget Preview</Text>
-                    <InlineStack gap="200">
+                    <InlineStack gap="100">
                       <button
                         onClick={() => setPreviewTab("cart")}
-                        style={{ padding: "6px 16px", borderRadius: 6, border: "1px solid #c9cccf", background: previewTab === "cart" ? "#1a1a1a" : "#fff", color: previewTab === "cart" ? "#fff" : "#333", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-                      >Cart Drawer</button>
+                        style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #c9cccf", background: previewTab === "cart" ? "#1a1a1a" : "#fff", color: previewTab === "cart" ? "#fff" : "#333", fontWeight: 600, fontSize: 12, cursor: "pointer" }}
+                      >Cart</button>
                       <button
                         onClick={() => setPreviewTab("product")}
-                        style={{ padding: "6px 16px", borderRadius: 6, border: "1px solid #c9cccf", background: previewTab === "product" ? "#1a1a1a" : "#fff", color: previewTab === "product" ? "#fff" : "#333", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
-                      >Product Page</button>
+                        style={{ padding: "5px 12px", borderRadius: 6, border: "1px solid #c9cccf", background: previewTab === "product" ? "#1a1a1a" : "#fff", color: previewTab === "product" ? "#fff" : "#333", fontWeight: 600, fontSize: 12, cursor: "pointer" }}
+                      >Product</button>
                     </InlineStack>
                   </InlineStack>
                   {previewTab === "cart" ? (
@@ -609,22 +627,7 @@ export default function SettingsPage() {
                   )}
                 </BlockStack>
               </Box>
-
-              {/* Save */}
-              <Box paddingBlockEnd="800">
-              <InlineStack align="end">
-                <Button
-                  variant="primary"
-                  onClick={handleSubmit}
-                  loading={isSubmitting}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Saving..." : "Save Settings"}
-                </Button>
-              </InlineStack>
-              </Box>
-
-            </BlockStack>
+            </div>
           </Layout.Section>
         </Layout>
       </Page>
