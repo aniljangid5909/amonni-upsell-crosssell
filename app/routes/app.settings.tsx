@@ -466,6 +466,7 @@ export default function SettingsPage() {
               </Box>
 
               {/* Save */}
+              <Box paddingBlockEnd="800">
               <InlineStack align="end">
                 <Button
                   variant="primary"
@@ -476,6 +477,7 @@ export default function SettingsPage() {
                   {isSubmitting ? "Saving..." : "Save Settings"}
                 </Button>
               </InlineStack>
+              </Box>
 
             </BlockStack>
           </Layout.Section>
