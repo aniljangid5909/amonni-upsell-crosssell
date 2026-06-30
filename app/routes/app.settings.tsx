@@ -56,6 +56,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     buttonTextColor: isPro ? (formData.get("buttonTextColor") as string) : "#ffffff",
     widgetBgColor: isPro ? (formData.get("widgetBgColor") as string) : "#ffffff",
     widgetTitleColor: isGrowthPlus ? (formData.get("widgetTitleColor") as string) : "#1a1a1a",
+    cardBgColor: isGrowthPlus ? (formData.get("cardBgColor") as string) : "#ffffff",
   });
 
   return json({ success: true });
@@ -102,6 +103,7 @@ export default function SettingsPage() {
   const [buttonTextColor, setButtonTextColor] = useState((settings as any).buttonTextColor || "#ffffff");
   const [widgetBgColor, setWidgetBgColor] = useState((settings as any).widgetBgColor || "#ffffff");
   const [widgetTitleColor, setWidgetTitleColor] = useState((settings as any).widgetTitleColor || "#1a1a1a");
+  const [cardBgColor, setCardBgColor] = useState((settings as any).cardBgColor || "#ffffff");
 
   // Behavior
   const [showOnMobile, setShowOnMobile] = useState(settings.showOnMobile);
@@ -129,6 +131,7 @@ export default function SettingsPage() {
     formData.set("buttonTextColor", buttonTextColor);
     formData.set("widgetBgColor", widgetBgColor);
     formData.set("widgetTitleColor", widgetTitleColor);
+    formData.set("cardBgColor", cardBgColor);
     formData.set("showOnMobile", String(showOnMobile));
     formData.set("animationStyle", animationStyle);
     formData.set("autoCloseSeconds", autoCloseSeconds);
@@ -136,7 +139,7 @@ export default function SettingsPage() {
     formData.set("emailReportFrequency", emailReportFrequency);
     formData.set("notificationEmail", notificationEmail);
     fetcher.submit(formData, { method: "post" });
-  }, [fetcher, widgetPosition, accentColor, borderRadius, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, showOnMobile, animationStyle, autoCloseSeconds, emailReports, emailReportFrequency, notificationEmail]);
+  }, [fetcher, widgetPosition, accentColor, borderRadius, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, showOnMobile, animationStyle, autoCloseSeconds, emailReports, emailReportFrequency, notificationEmail]);
 
   const card = {
     background: "bg-surface" as const,
@@ -269,6 +272,30 @@ export default function SettingsPage() {
                         </InlineStack>
                       ) : (
                         <LockedNote label="Custom button text color" plan="Pro" />
+                      )}
+                    </BlockStack>
+
+                    {/* Card background color — Growth+ */}
+                    <BlockStack gap="200">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="p" variant="bodyMd">Card background color</Text>
+                        {!isGrowthPlus && <Badge tone="warning">Growth+</Badge>}
+                      </InlineStack>
+                      {isGrowthPlus ? (
+                        <InlineStack gap="300" blockAlign="center">
+                          <input
+                            type="color"
+                            value={cardBgColor}
+                            onChange={(e) => setCardBgColor(e.target.value)}
+                            style={{ width: 40, height: 40, border: "1px solid #c9cccf", borderRadius: 6, cursor: "pointer", padding: 2, backgroundColor: "transparent" }}
+                          />
+                          <Text as="span" variant="bodyMd" tone="subdued">{cardBgColor}</Text>
+                          <div style={{ width: 80, height: 40, borderRadius: 8, background: cardBgColor, border: "1px solid #e8e8e8", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                            <span style={{ fontSize: 10, color: "#888" }}>Card</span>
+                          </div>
+                        </InlineStack>
+                      ) : (
+                        <LockedNote label="Custom card background" plan="Growth" />
                       )}
                     </BlockStack>
 
@@ -446,7 +473,7 @@ export default function SettingsPage() {
                   loading={isSubmitting}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Saving..." : "Save settings"}
+                  {isSubmitting ? "Saving..." : "Save Settings"}
                 </Button>
               </InlineStack>
 

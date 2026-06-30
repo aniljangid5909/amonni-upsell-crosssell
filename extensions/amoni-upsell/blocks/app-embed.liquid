@@ -144,7 +144,7 @@
     var hasDiscount = funnel.discountValue > 0 && discounted < offerPrice;
 
     var card = document.createElement('div');
-    card.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #e8e8e8;border-radius:10px;background:' + widgetBgColor + ';flex-shrink:0;min-width:220px;';
+    card.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #e8e8e8;border-radius:10px;background:' + cardBgColor + ';flex-shrink:0;min-width:220px;';
 
     var imgHtml = funnel.offerImageUrl
       ? '<img src="' + funnel.offerImageUrl + '" style="width:60px;height:60px;border-radius:8px;object-fit:cover;border:1px solid #f0f0f0;flex-shrink:0;" />'
@@ -247,6 +247,7 @@
   var buttonTextColor = '#ffffff';
   var widgetBgColor = '#ffffff';
   var widgetTitleColor = '#1a1a1a';
+  var cardBgColor = '#ffffff';
 
   // ── Clear discount if the discounted variant was removed from cart ──
   function checkAndClearDiscount(cartItems) {
@@ -277,7 +278,7 @@
 
     var wrapper = document.createElement('div');
     wrapper.id = WIDGET_ID;
-    wrapper.style.cssText = 'padding:12px 16px;border-top:1px solid #e8e8e8;background:' + widgetBgColor + ';';
+    wrapper.style.cssText = 'padding:12px 16px;margin:12px 0;border-top:1px solid #e8e8e8;border-bottom:1px solid #e8e8e8;background:' + widgetBgColor + ';';
 
     // Heading
     var headingEl = document.createElement('div');
@@ -403,6 +404,7 @@
             if (data.buttonTextColor) buttonTextColor = data.buttonTextColor;
             if (data.widgetBgColor) widgetBgColor = data.widgetBgColor;
             if (data.widgetTitleColor) widgetTitleColor = data.widgetTitleColor;
+            if (data.cardBgColor) cardBgColor = data.cardBgColor;
             cachedCartHash = hash;
             if (!funnels.length) { cachedFunnel = null; cachedFunnels = null; return; }
             cachedFunnel = funnels[0];

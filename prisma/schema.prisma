@@ -79,6 +79,7 @@ model ShopSettings {
   buttonTextColor      String   @default("#ffffff")
   widgetBgColor        String   @default("#ffffff")
   widgetTitleColor     String   @default("#1a1a1a")
+  cardBgColor          String   @default("#ffffff")
 
   // Behavior
   showOnMobile         Boolean  @default(true)
