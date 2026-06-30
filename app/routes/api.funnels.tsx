@@ -2,6 +2,7 @@ import { json } from "@remix-run/node";
 import type { LoaderFunctionArgs } from "@remix-run/node";
 import { prisma } from "../shopify.server";
 import { getCurrentPlanByToken, getMonthlyImpressions, PLAN_LIMITS } from "../plan.server";
+import { updateShopSettings } from "../settings.server";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -125,11 +126,32 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   // Only Pro plan can hide the branding; all other plans always show it
   const showPoweredBy = plan === 'pro' ? (shopSettings?.showPoweredBy ?? true) : true;
   const isGrowthPlus = plan === 'growth' || plan === 'pro';
+  const isPro = plan === 'pro';
   const buttonColor = isGrowthPlus ? (shopSettings?.buttonColor ?? '#1a1a1a') : '#1a1a1a';
-  const buttonTextColor = plan === 'pro' ? (shopSettings?.buttonTextColor ?? '#ffffff') : '#ffffff';
-  const widgetBgColor = plan === 'pro' ? (shopSettings?.widgetBgColor ?? '#ffffff') : '#ffffff';
+  const buttonTextColor = isPro ? (shopSettings?.buttonTextColor ?? '#ffffff') : '#ffffff';
+  const widgetBgColor = isPro ? (shopSettings?.widgetBgColor ?? '#ffffff') : '#ffffff';
   const widgetTitleColor = isGrowthPlus ? (shopSettings?.widgetTitleColor ?? '#1a1a1a') : '#1a1a1a';
   const cardBgColor = isGrowthPlus ? ((shopSettings as any)?.cardBgColor ?? '#ffffff') : '#ffffff';
   const borderRadius = shopSettings?.borderRadius ?? 8;
+
+  // Async reset: if DB has non-default values for features the current plan doesn't support, wipe them
+  if (shopSettings) {
+    const resets: Record<string, any> = {};
+    if (!isGrowthPlus) {
+      if (shopSettings.buttonColor !== '#1a1a1a') resets.buttonColor = '#1a1a1a';
+      if ((shopSettings as any).widgetTitleColor !== '#1a1a1a') resets.widgetTitleColor = '#1a1a1a';
+      if ((shopSettings as any).cardBgColor !== '#ffffff') resets.cardBgColor = '#ffffff';
+      if (shopSettings.accentColor !== '#000000') resets.accentColor = '#000000';
+    }
+    if (!isPro) {
+      if ((shopSettings as any).buttonTextColor !== '#ffffff') resets.buttonTextColor = '#ffffff';
+      if ((shopSettings as any).widgetBgColor !== '#ffffff') resets.widgetBgColor = '#ffffff';
+      if (shopSettings.showPoweredBy !== true) resets.showPoweredBy = true;
+    }
+    if (Object.keys(resets).length > 0) {
+      updateShopSettings(shop, resets).catch(() => {});
+    }
+  }
+
   return json({ funnels: result, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, borderRadius }, { headers: CORS });
 };
