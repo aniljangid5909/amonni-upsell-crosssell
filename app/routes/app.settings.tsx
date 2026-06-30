@@ -17,7 +17,7 @@ import {
   Toast,
   Badge,
 } from "@shopify/polaris";
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 import { authenticate } from "../shopify.server";
 import { getCurrentPlan } from "../plan.server";
 import { getShopSettings, updateShopSettings } from "../settings.server";
@@ -79,6 +79,109 @@ function LockedNote({ label, plan }: { label: string; plan: string }) {
   );
 }
 
+interface PreviewProps {
+  buttonColor: string;
+  buttonTextColor: string;
+  widgetBgColor: string;
+  widgetTitleColor: string;
+  cardBgColor: string;
+  borderRadius: number;
+  showPoweredBy: boolean;
+}
+
+const SAMPLE_PRODUCTS = [
+  { name: "Premium Leather Case", price: "$29.99", img: null },
+  { name: "Screen Protector Pack", price: "$14.99", img: null },
+];
+
+function CartDrawerPreview({ buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, borderRadius, showPoweredBy }: PreviewProps) {
+  return (
+    <div style={{ border: "1px solid #e8e8e8", borderRadius: 12, overflow: "hidden", background: "#f9f9f9", maxWidth: 360, margin: "0 auto" }}>
+      {/* Simulated cart items */}
+      <div style={{ padding: "12px 16px", borderBottom: "1px solid #e8e8e8" }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 8 }}>Your cart (2)</div>
+        {["Blue Sneakers — $89.99", "White T-Shirt — $24.99"].map((item) => (
+          <div key={item} style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 6, background: "#e0e0e0", flexShrink: 0 }} />
+            <div style={{ fontSize: 12, color: "#555" }}>{item}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Amoni widget */}
+      <div style={{ padding: "12px 16px", margin: "0", borderTop: "1px solid #e8e8e8", borderBottom: "1px solid #e8e8e8", background: widgetBgColor }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: widgetTitleColor, marginBottom: 10 }}>Frequently bought together</div>
+        <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2 }}>
+          {SAMPLE_PRODUCTS.map((p) => (
+            <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: "1px solid #e8e8e8", borderRadius, background: cardBgColor, flexShrink: 0, minWidth: 210 }}>
+              <div style={{ width: 52, height: 52, borderRadius: 6, background: "#ddd", flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#1a1a1a", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a", marginBottom: 5 }}>{p.price}</div>
+              </div>
+              <button style={{ padding: "6px 12px", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Add</button>
+            </div>
+          ))}
+        </div>
+        {showPoweredBy && (
+          <div style={{ textAlign: "center", marginTop: 10, paddingTop: 8, borderTop: "1px solid #f0f0f0" }}>
+            <span style={{ fontSize: 10, color: "#ccc" }}>Powered by <strong style={{ color: "#bbb" }}>Amoni</strong></span>
+          </div>
+        )}
+      </div>
+
+      {/* Cart footer */}
+      <div style={{ padding: "12px 16px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10, fontSize: 13, color: "#333" }}>
+          <span>Subtotal</span><span style={{ fontWeight: 700 }}>$114.98</span>
+        </div>
+        <div style={{ background: "#1a1a1a", color: "#fff", padding: "10px 0", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight: 600 }}>Checkout</div>
+      </div>
+    </div>
+  );
+}
+
+function ProductPagePreview({ buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, borderRadius, showPoweredBy }: PreviewProps) {
+  return (
+    <div style={{ border: "1px solid #e8e8e8", borderRadius: 12, overflow: "hidden", background: "#f9f9f9", maxWidth: 480, margin: "0 auto" }}>
+      {/* Simulated product */}
+      <div style={{ padding: "16px", borderBottom: "1px solid #e8e8e8", display: "flex", gap: 14, alignItems: "flex-start" }}>
+        <div style={{ width: 80, height: 80, borderRadius: 8, background: "#ddd", flexShrink: 0 }} />
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", marginBottom: 4 }}>Blue Sneakers</div>
+          <div style={{ fontSize: 14, color: "#555", marginBottom: 10 }}>$89.99</div>
+          <div style={{ background: "#1a1a1a", color: "#fff", padding: "8px 20px", borderRadius: 6, fontSize: 13, fontWeight: 600, display: "inline-block" }}>Add to cart</div>
+        </div>
+      </div>
+
+      {/* Amoni widget — product page inline style */}
+      <div style={{ padding: "14px 16px", background: widgetBgColor, borderTop: "1px solid #e8e8e8", borderBottom: "1px solid #e8e8e8", margin: "12px 0" }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: widgetTitleColor, marginBottom: 10 }}>Frequently bought together</div>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          {SAMPLE_PRODUCTS.map((p) => (
+            <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: "1px solid #e8e8e8", borderRadius, background: cardBgColor, flex: "1 1 180px", minWidth: 180 }}>
+              <div style={{ width: 48, height: 48, borderRadius: 6, background: "#ddd", flexShrink: 0 }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#1a1a1a", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a" }}>{p.price}</div>
+              </div>
+              <button style={{ padding: "6px 12px", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Add</button>
+            </div>
+          ))}
+        </div>
+        <button style={{ marginTop: 12, width: "100%", padding: "10px 0", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+          Add Bundle to Cart
+        </button>
+        {showPoweredBy && (
+          <div style={{ textAlign: "center", marginTop: 10, paddingTop: 8, borderTop: "1px solid #f0f0f0" }}>
+            <span style={{ fontSize: 10, color: "#ccc" }}>Powered by <strong style={{ color: "#bbb" }}>Amoni</strong></span>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const { settings, plan, shop, host } = useLoaderData<typeof loader>();
   const fetcher = useFetcher<{ success: boolean }>();
@@ -109,6 +212,8 @@ export default function SettingsPage() {
   const [showOnMobile, setShowOnMobile] = useState(settings.showOnMobile);
   const [animationStyle, setAnimationStyle] = useState(settings.animationStyle);
   const [autoCloseSeconds, setAutoCloseSeconds] = useState(String(settings.autoCloseSeconds));
+
+  const [previewTab, setPreviewTab] = useState<"cart" | "product">("cart");
 
   // Email reports
   const [emailReports, setEmailReports] = useState(settings.emailReports);
@@ -461,6 +566,46 @@ export default function SettingsPage() {
                         Upgrade to Pro
                       </Button>
                     </BlockStack>
+                  )}
+                </BlockStack>
+              </Box>
+
+              {/* Live Preview */}
+              <Box {...card}>
+                <BlockStack gap="400">
+                  <InlineStack align="space-between" blockAlign="center">
+                    <Text as="h2" variant="headingMd">Widget Preview</Text>
+                    <InlineStack gap="200">
+                      <button
+                        onClick={() => setPreviewTab("cart")}
+                        style={{ padding: "6px 16px", borderRadius: 6, border: "1px solid #c9cccf", background: previewTab === "cart" ? "#1a1a1a" : "#fff", color: previewTab === "cart" ? "#fff" : "#333", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                      >Cart Drawer</button>
+                      <button
+                        onClick={() => setPreviewTab("product")}
+                        style={{ padding: "6px 16px", borderRadius: 6, border: "1px solid #c9cccf", background: previewTab === "product" ? "#1a1a1a" : "#fff", color: previewTab === "product" ? "#fff" : "#333", fontWeight: 600, fontSize: 13, cursor: "pointer" }}
+                      >Product Page</button>
+                    </InlineStack>
+                  </InlineStack>
+                  {previewTab === "cart" ? (
+                    <CartDrawerPreview
+                      buttonColor={buttonColor}
+                      buttonTextColor={buttonTextColor}
+                      widgetBgColor={widgetBgColor}
+                      widgetTitleColor={widgetTitleColor}
+                      cardBgColor={cardBgColor}
+                      borderRadius={parseInt(borderRadius, 10)}
+                      showPoweredBy={showPoweredBy}
+                    />
+                  ) : (
+                    <ProductPagePreview
+                      buttonColor={buttonColor}
+                      buttonTextColor={buttonTextColor}
+                      widgetBgColor={widgetBgColor}
+                      widgetTitleColor={widgetTitleColor}
+                      cardBgColor={cardBgColor}
+                      borderRadius={parseInt(borderRadius, 10)}
+                      showPoweredBy={showPoweredBy}
+                    />
                   )}
                 </BlockStack>
               </Box>
