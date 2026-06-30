@@ -34,22 +34,28 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const isGrowthPlus = plan === "growth" || plan === "pro";
   const isPro = plan === "pro";
 
-  // Return plan-gated effective values so the UI always shows what's actually applied
-  const effectiveSettings = {
-    ...settings,
-    accentColor: isGrowthPlus ? settings.accentColor : "#000000",
-    animationStyle: isGrowthPlus ? settings.animationStyle : "none",
-    showPoweredBy: isPro ? settings.showPoweredBy : true,
-    emailReports: isPro ? settings.emailReports : false,
-    notificationEmail: isPro ? settings.notificationEmail : "",
-    buttonColor: isGrowthPlus ? (settings as any).buttonColor : "#1a1a1a",
-    buttonTextColor: isPro ? (settings as any).buttonTextColor : "#ffffff",
-    widgetBgColor: isPro ? (settings as any).widgetBgColor : "#ffffff",
-    widgetTitleColor: isGrowthPlus ? (settings as any).widgetTitleColor : "#1a1a1a",
-    cardBgColor: isGrowthPlus ? (settings as any).cardBgColor : "#ffffff",
-  };
+  // If plan doesn't support a feature, reset DB value to default so API also returns correct value
+  const dbResets: Record<string, any> = {};
+  if (!isGrowthPlus) {
+    if ((settings as any).buttonColor !== "#1a1a1a") dbResets.buttonColor = "#1a1a1a";
+    if ((settings as any).widgetTitleColor !== "#1a1a1a") dbResets.widgetTitleColor = "#1a1a1a";
+    if ((settings as any).cardBgColor !== "#ffffff") dbResets.cardBgColor = "#ffffff";
+    if (settings.accentColor !== "#000000") dbResets.accentColor = "#000000";
+    if (settings.animationStyle !== "none") dbResets.animationStyle = "none";
+  }
+  if (!isPro) {
+    if ((settings as any).buttonTextColor !== "#ffffff") dbResets.buttonTextColor = "#ffffff";
+    if ((settings as any).widgetBgColor !== "#ffffff") dbResets.widgetBgColor = "#ffffff";
+    if (settings.showPoweredBy !== true) dbResets.showPoweredBy = true;
+    if (settings.emailReports !== false) dbResets.emailReports = false;
+    if (settings.notificationEmail !== "") dbResets.notificationEmail = "";
+  }
+  if (Object.keys(dbResets).length > 0) {
+    await updateShopSettings(session.shop, dbResets);
+    Object.assign(settings, dbResets);
+  }
 
-  return json({ settings: effectiveSettings, plan, shop: session.shop, host });
+  return json({ settings, plan, shop: session.shop, host });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
