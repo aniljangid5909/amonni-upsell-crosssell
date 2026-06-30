@@ -196,6 +196,7 @@
       var btnTextColor = data.buttonTextColor || '#ffffff';
       var bgColor = data.widgetBgColor || '#ffffff';
       var titleColor = data.widgetTitleColor || '#1a1a1a';
+      var cardBg = data.cardBgColor || '#ffffff';
 
       var firstFunnel = funnels[0];
       var type = firstFunnel.offerType || 'bundle';
@@ -344,7 +345,7 @@
           var discountPct = funnel.discountType === 'percent' ? Math.round(funnel.discountValue) : null;
 
           var card = document.createElement('div');
-          card.style.cssText = 'border:1px solid #e8e8e8;border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:8px;background:#fff;';
+          card.style.cssText = 'border:1px solid #e8e8e8;border-radius:12px;padding:12px;display:flex;flex-direction:column;align-items:center;gap:8px;background:' + cardBg + ';';
           if (displayStyle === 'carousel') {
             card.style.minWidth = '160px';
             card.style.maxWidth = '180px';
