@@ -111,13 +111,13 @@ function CartDrawerPreview({ buttonColor, buttonTextColor, widgetBgColor, widget
       {/* Amoni widget */}
       <div style={{ padding: "12px 16px", margin: "0", borderTop: "1px solid #e8e8e8", borderBottom: "1px solid #e8e8e8", background: widgetBgColor }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: widgetTitleColor, marginBottom: 10 }}>Frequently bought together</div>
-        <div style={{ display: "flex", gap: 10, overflowX: "auto", paddingBottom: 2 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {SAMPLE_PRODUCTS.map((p) => (
-            <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: "1px solid #e8e8e8", borderRadius, background: cardBgColor, flexShrink: 0, minWidth: 210 }}>
-              <div style={{ width: 52, height: 52, borderRadius: 6, background: "#ddd", flexShrink: 0 }} />
+            <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: "1px solid #e8e8e8", borderRadius, background: cardBgColor }}>
+              <div style={{ width: 44, height: 44, borderRadius: 6, background: "#ddd", flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 11, fontWeight: 600, color: "#1a1a1a", marginBottom: 3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a", marginBottom: 5 }}>{p.price}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a" }}>{p.price}</div>
               </div>
               <button style={{ padding: "6px 12px", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Add</button>
             </div>
