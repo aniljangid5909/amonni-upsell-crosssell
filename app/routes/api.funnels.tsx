@@ -130,5 +130,6 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const widgetBgColor = plan === 'pro' ? (shopSettings?.widgetBgColor ?? '#ffffff') : '#ffffff';
   const widgetTitleColor = isGrowthPlus ? (shopSettings?.widgetTitleColor ?? '#1a1a1a') : '#1a1a1a';
   const cardBgColor = isGrowthPlus ? ((shopSettings as any)?.cardBgColor ?? '#ffffff') : '#ffffff';
-  return json({ funnels: result, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor }, { headers: CORS });
+  const borderRadius = shopSettings?.borderRadius ?? 8;
+  return json({ funnels: result, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, borderRadius }, { headers: CORS });
 };
