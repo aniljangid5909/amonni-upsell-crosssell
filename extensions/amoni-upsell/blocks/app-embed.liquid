@@ -246,6 +246,7 @@
   var buttonColor = '#1a1a1a';
   var buttonTextColor = '#ffffff';
   var widgetBgColor = '#ffffff';
+  var widgetTitleColor = '#1a1a1a';
 
   // ── Clear discount if the discounted variant was removed from cart ──
   function checkAndClearDiscount(cartItems) {
@@ -280,7 +281,7 @@
 
     // Heading
     var headingEl = document.createElement('div');
-    headingEl.style.cssText = 'font-size:13px;font-weight:700;color:#1a1a1a;margin-bottom:10px;';
+    headingEl.style.cssText = 'font-size:13px;font-weight:700;color:' + widgetTitleColor + ';margin-bottom:10px;';
     headingEl.textContent = heading;
     wrapper.appendChild(headingEl);
 
@@ -401,6 +402,7 @@
             if (data.buttonColor) buttonColor = data.buttonColor;
             if (data.buttonTextColor) buttonTextColor = data.buttonTextColor;
             if (data.widgetBgColor) widgetBgColor = data.widgetBgColor;
+            if (data.widgetTitleColor) widgetTitleColor = data.widgetTitleColor;
             cachedCartHash = hash;
             if (!funnels.length) { cachedFunnel = null; cachedFunnels = null; return; }
             cachedFunnel = funnels[0];

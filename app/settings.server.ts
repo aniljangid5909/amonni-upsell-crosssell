@@ -18,6 +18,7 @@ export async function updateShopSettings(
     buttonColor: string;
     buttonTextColor: string;
     widgetBgColor: string;
+    widgetTitleColor: string;
     showOnMobile: boolean;
     animationStyle: string;
     autoCloseSeconds: number;

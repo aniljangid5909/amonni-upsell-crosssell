@@ -195,6 +195,7 @@
       var btnColor = data.buttonColor || '#1a1a1a';
       var btnTextColor = data.buttonTextColor || '#ffffff';
       var bgColor = data.widgetBgColor || '#ffffff';
+      var titleColor = data.widgetTitleColor || '#1a1a1a';
 
       var firstFunnel = funnels[0];
       var type = firstFunnel.offerType || 'bundle';
@@ -212,7 +213,7 @@
                                  'Frequently bought together');
 
       var headingEl = document.createElement('div');
-      headingEl.style.cssText = 'font-size:16px;font-weight:700;color:#1a1a1a;margin-bottom:6px;';
+      headingEl.style.cssText = 'font-size:16px;font-weight:700;color:' + titleColor + ';margin-bottom:6px;';
       headingEl.textContent = heading;
       container.appendChild(headingEl);
 

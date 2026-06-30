@@ -55,6 +55,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     buttonColor: isGrowthPlus ? (formData.get("buttonColor") as string) : "#1a1a1a",
     buttonTextColor: isPro ? (formData.get("buttonTextColor") as string) : "#ffffff",
     widgetBgColor: isPro ? (formData.get("widgetBgColor") as string) : "#ffffff",
+    widgetTitleColor: isGrowthPlus ? (formData.get("widgetTitleColor") as string) : "#1a1a1a",
   });
 
   return json({ success: true });
@@ -100,6 +101,7 @@ export default function SettingsPage() {
   const [buttonColor, setButtonColor] = useState((settings as any).buttonColor || "#1a1a1a");
   const [buttonTextColor, setButtonTextColor] = useState((settings as any).buttonTextColor || "#ffffff");
   const [widgetBgColor, setWidgetBgColor] = useState((settings as any).widgetBgColor || "#ffffff");
+  const [widgetTitleColor, setWidgetTitleColor] = useState((settings as any).widgetTitleColor || "#1a1a1a");
 
   // Behavior
   const [showOnMobile, setShowOnMobile] = useState(settings.showOnMobile);
@@ -126,6 +128,7 @@ export default function SettingsPage() {
     formData.set("buttonColor", buttonColor);
     formData.set("buttonTextColor", buttonTextColor);
     formData.set("widgetBgColor", widgetBgColor);
+    formData.set("widgetTitleColor", widgetTitleColor);
     formData.set("showOnMobile", String(showOnMobile));
     formData.set("animationStyle", animationStyle);
     formData.set("autoCloseSeconds", autoCloseSeconds);
@@ -133,7 +136,7 @@ export default function SettingsPage() {
     formData.set("emailReportFrequency", emailReportFrequency);
     formData.set("notificationEmail", notificationEmail);
     fetcher.submit(formData, { method: "post" });
-  }, [fetcher, widgetPosition, accentColor, borderRadius, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor, showOnMobile, animationStyle, autoCloseSeconds, emailReports, emailReportFrequency, notificationEmail]);
+  }, [fetcher, widgetPosition, accentColor, borderRadius, showPoweredBy, buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, showOnMobile, animationStyle, autoCloseSeconds, emailReports, emailReportFrequency, notificationEmail]);
 
   const card = {
     background: "bg-surface" as const,
@@ -223,6 +226,28 @@ export default function SettingsPage() {
                         </InlineStack>
                       ) : (
                         <LockedNote label="Custom button color" plan="Growth" />
+                      )}
+                    </BlockStack>
+
+                    {/* Widget title color — Growth+ */}
+                    <BlockStack gap="200">
+                      <InlineStack gap="200" blockAlign="center">
+                        <Text as="p" variant="bodyMd">Widget title color</Text>
+                        {!isGrowthPlus && <Badge tone="warning">Growth+</Badge>}
+                      </InlineStack>
+                      {isGrowthPlus ? (
+                        <InlineStack gap="300" blockAlign="center">
+                          <input
+                            type="color"
+                            value={widgetTitleColor}
+                            onChange={(e) => setWidgetTitleColor(e.target.value)}
+                            style={{ width: 40, height: 40, border: "1px solid #c9cccf", borderRadius: 6, cursor: "pointer", padding: 2, backgroundColor: "transparent" }}
+                          />
+                          <Text as="span" variant="bodyMd" tone="subdued">{widgetTitleColor}</Text>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: widgetTitleColor }}>Frequently bought together</span>
+                        </InlineStack>
+                      ) : (
+                        <LockedNote label="Custom widget title color" plan="Growth" />
                       )}
                     </BlockStack>
 
