@@ -144,7 +144,7 @@
     var hasDiscount = funnel.discountValue > 0 && discounted < offerPrice;
 
     var card = document.createElement('div');
-    card.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #e8e8e8;border-radius:10px;background:#fff;flex-shrink:0;min-width:220px;';
+    card.style.cssText = 'display:flex;align-items:center;gap:12px;padding:10px;border:1px solid #e8e8e8;border-radius:10px;background:' + widgetBgColor + ';flex-shrink:0;min-width:220px;';
 
     var imgHtml = funnel.offerImageUrl
       ? '<img src="' + funnel.offerImageUrl + '" style="width:60px;height:60px;border-radius:8px;object-fit:cover;border:1px solid #f0f0f0;flex-shrink:0;" />'
