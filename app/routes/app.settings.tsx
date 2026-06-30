@@ -30,7 +30,26 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     getShopSettings(session.shop),
     getCurrentPlan(admin, session.shop),
   ]);
-  return json({ settings, plan, shop: session.shop, host });
+
+  const isGrowthPlus = plan === "growth" || plan === "pro";
+  const isPro = plan === "pro";
+
+  // Return plan-gated effective values so the UI always shows what's actually applied
+  const effectiveSettings = {
+    ...settings,
+    accentColor: isGrowthPlus ? settings.accentColor : "#000000",
+    animationStyle: isGrowthPlus ? settings.animationStyle : "none",
+    showPoweredBy: isPro ? settings.showPoweredBy : true,
+    emailReports: isPro ? settings.emailReports : false,
+    notificationEmail: isPro ? settings.notificationEmail : "",
+    buttonColor: isGrowthPlus ? (settings as any).buttonColor : "#1a1a1a",
+    buttonTextColor: isPro ? (settings as any).buttonTextColor : "#ffffff",
+    widgetBgColor: isPro ? (settings as any).widgetBgColor : "#ffffff",
+    widgetTitleColor: isGrowthPlus ? (settings as any).widgetTitleColor : "#1a1a1a",
+    cardBgColor: isGrowthPlus ? (settings as any).cardBgColor : "#ffffff",
+  };
+
+  return json({ settings: effectiveSettings, plan, shop: session.shop, host });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
