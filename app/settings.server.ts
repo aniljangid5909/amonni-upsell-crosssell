@@ -26,6 +26,7 @@ export async function updateShopSettings(
     emailReports: boolean;
     emailReportFrequency: string;
     notificationEmail: string;
+    activePlan: string;
   }>
 ) {
   return prisma.shopSettings.upsert({

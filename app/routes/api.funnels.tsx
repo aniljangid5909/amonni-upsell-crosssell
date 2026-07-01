@@ -134,22 +134,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const cardBgColor = isGrowthPlus ? ((shopSettings as any)?.cardBgColor ?? '#ffffff') : '#ffffff';
   const borderRadius = shopSettings?.borderRadius ?? 8;
 
-  // Async reset: if DB has non-default values for features the current plan doesn't support, wipe them
-  if (shopSettings) {
-    const resets: Record<string, any> = {};
-    if (!isGrowthPlus) {
-      if (shopSettings.buttonColor !== '#1a1a1a') resets.buttonColor = '#1a1a1a';
-      if ((shopSettings as any).widgetTitleColor !== '#1a1a1a') resets.widgetTitleColor = '#1a1a1a';
-      if ((shopSettings as any).cardBgColor !== '#ffffff') resets.cardBgColor = '#ffffff';
-      if (shopSettings.accentColor !== '#000000') resets.accentColor = '#000000';
+  // Detect plan change — if plan changed to a lower tier, reset ALL color customizations to defaults
+  if (shopSettings && (shopSettings as any).activePlan !== plan) {
+    const prevPlan = (shopSettings as any).activePlan || '';
+    const planRank: Record<string, number> = { '': 0, 'starter': 1, 'growth': 2, 'pro': 3 };
+    const wasDowngrade = (planRank[prevPlan] || 0) > (planRank[plan] || 0);
+    const resets: Record<string, any> = { activePlan: plan };
+
+    if (wasDowngrade) {
+      // Reset everything to defaults on any downgrade
+      resets.buttonColor = '#1a1a1a';
+      resets.buttonTextColor = '#ffffff';
+      resets.widgetBgColor = '#ffffff';
+      resets.widgetTitleColor = '#1a1a1a';
+      resets.cardBgColor = '#ffffff';
+      resets.accentColor = '#000000';
+      resets.showPoweredBy = true;
+      resets.animationStyle = 'slide';
     }
-    if (!isPro) {
-      if ((shopSettings as any).buttonTextColor !== '#ffffff') resets.buttonTextColor = '#ffffff';
-      if ((shopSettings as any).widgetBgColor !== '#ffffff') resets.widgetBgColor = '#ffffff';
-      if (shopSettings.showPoweredBy !== true) resets.showPoweredBy = true;
-    }
-    if (Object.keys(resets).length > 0) {
-      updateShopSettings(shop, resets).catch(() => {});
+
+    updateShopSettings(shop, resets).catch(() => {});
+
+    // Also override return values immediately so widget gets defaults right away
+    if (wasDowngrade) {
+      Object.assign(shopSettings, resets);
     }
   }
 
