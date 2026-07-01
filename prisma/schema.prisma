@@ -91,9 +91,6 @@ model ShopSettings {
   emailReportFrequency String   @default("weekly")
   notificationEmail    String   @default("")
 
-  // Plan tracking for change detection
-  activePlan           String   @default("")
-
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt
 }

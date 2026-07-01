@@ -31,28 +31,24 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     getCurrentPlan(admin, session.shop),
   ]);
 
-  const isGrowthPlus = plan === "growth" || plan === "pro";
   const isPro = plan === "pro";
+  const isGrowthPlus = plan === "growth" || plan === "pro";
 
-  // If plan doesn't support a feature, reset DB value to default so API also returns correct value
-  const dbResets: Record<string, any> = {};
-  if (!isGrowthPlus) {
-    if ((settings as any).buttonColor !== "#1a1a1a") dbResets.buttonColor = "#1a1a1a";
-    if ((settings as any).widgetTitleColor !== "#1a1a1a") dbResets.widgetTitleColor = "#1a1a1a";
-    if ((settings as any).cardBgColor !== "#ffffff") dbResets.cardBgColor = "#ffffff";
-    if (settings.accentColor !== "#000000") dbResets.accentColor = "#000000";
-    if (settings.animationStyle !== "none") dbResets.animationStyle = "none";
-  }
+  // Reset any non-Pro colors in DB (fired async, applied to settings object immediately)
   if (!isPro) {
-    if ((settings as any).buttonTextColor !== "#ffffff") dbResets.buttonTextColor = "#ffffff";
-    if ((settings as any).widgetBgColor !== "#ffffff") dbResets.widgetBgColor = "#ffffff";
-    if (settings.showPoweredBy !== true) dbResets.showPoweredBy = true;
-    if (settings.emailReports !== false) dbResets.emailReports = false;
-    if (settings.notificationEmail !== "") dbResets.notificationEmail = "";
-  }
-  if (Object.keys(dbResets).length > 0) {
-    await updateShopSettings(session.shop, dbResets);
-    Object.assign(settings, dbResets);
+    const s = settings as any;
+    const resets: Record<string, any> = {};
+    if (s.buttonColor !== "#1a1a1a") resets.buttonColor = "#1a1a1a";
+    if (s.buttonTextColor !== "#ffffff") resets.buttonTextColor = "#ffffff";
+    if (s.widgetBgColor !== "#ffffff") resets.widgetBgColor = "#ffffff";
+    if (s.widgetTitleColor !== "#1a1a1a") resets.widgetTitleColor = "#1a1a1a";
+    if (s.cardBgColor !== "#ffffff") resets.cardBgColor = "#ffffff";
+    if (s.accentColor !== "#000000") resets.accentColor = "#000000";
+    if (settings.showPoweredBy !== true) resets.showPoweredBy = true;
+    if (Object.keys(resets).length > 0) {
+      updateShopSettings(session.shop, resets).catch(() => {});
+      Object.assign(settings, resets);
+    }
   }
 
   return json({ settings, plan, shop: session.shop, host });
@@ -68,7 +64,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 
   await updateShopSettings(session.shop, {
     widgetPosition: formData.get("widgetPosition") as string,
-    accentColor: isGrowthPlus ? (formData.get("accentColor") as string) : "#000000",
+    accentColor: isPro ? (formData.get("accentColor") as string) : "#000000",
     borderRadius: parseInt(formData.get("borderRadius") as string, 10),
     showPoweredBy: isPro ? formData.get("showPoweredBy") === "true" : true,
     showOnMobile: formData.get("showOnMobile") === "true",
@@ -77,11 +73,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
     emailReports: isPro ? formData.get("emailReports") === "true" : false,
     emailReportFrequency: formData.get("emailReportFrequency") as string,
     notificationEmail: isPro ? (formData.get("notificationEmail") as string) : "",
-    buttonColor: isGrowthPlus ? (formData.get("buttonColor") as string) : "#1a1a1a",
+    buttonColor: isPro ? (formData.get("buttonColor") as string) : "#1a1a1a",
     buttonTextColor: isPro ? (formData.get("buttonTextColor") as string) : "#ffffff",
     widgetBgColor: isPro ? (formData.get("widgetBgColor") as string) : "#ffffff",
-    widgetTitleColor: isGrowthPlus ? (formData.get("widgetTitleColor") as string) : "#1a1a1a",
-    cardBgColor: isGrowthPlus ? (formData.get("cardBgColor") as string) : "#ffffff",
+    widgetTitleColor: isPro ? (formData.get("widgetTitleColor") as string) : "#1a1a1a",
+    cardBgColor: isPro ? (formData.get("cardBgColor") as string) : "#ffffff",
   });
 
   return json({ success: true });
@@ -321,9 +317,9 @@ export default function SettingsPage() {
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="p" variant="bodyMd">Accent color</Text>
-                        {!isGrowthPlus && <Badge tone="warning">Growth+</Badge>}
+                        {!isPro && <Badge tone="info">Pro</Badge>}
                       </InlineStack>
-                      {isGrowthPlus ? (
+                      {isPro ? (
                         <InlineStack gap="300" blockAlign="center">
                           <input
                             type="color"
@@ -334,17 +330,17 @@ export default function SettingsPage() {
                           <Text as="span" variant="bodyMd" tone="subdued">{accentColor}</Text>
                         </InlineStack>
                       ) : (
-                        <LockedNote label="Custom accent color" plan="Growth" />
+                        <LockedNote label="Custom accent color" plan="Pro" />
                       )}
                     </BlockStack>
 
-                    {/* Button color — Growth+ */}
+                    {/* Button color — Pro */}
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="p" variant="bodyMd">Button color</Text>
-                        {!isGrowthPlus && <Badge tone="warning">Growth+</Badge>}
+                        {!isPro && <Badge tone="info">Pro</Badge>}
                       </InlineStack>
-                      {isGrowthPlus ? (
+                      {isPro ? (
                         <InlineStack gap="300" blockAlign="center">
                           <input
                             type="color"
@@ -358,17 +354,17 @@ export default function SettingsPage() {
                           </div>
                         </InlineStack>
                       ) : (
-                        <LockedNote label="Custom button color" plan="Growth" />
+                        <LockedNote label="Custom button color" plan="Pro" />
                       )}
                     </BlockStack>
 
-                    {/* Widget title color — Growth+ */}
+                    {/* Widget title color — Pro */}
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="p" variant="bodyMd">Widget title color</Text>
-                        {!isGrowthPlus && <Badge tone="warning">Growth+</Badge>}
+                        {!isPro && <Badge tone="info">Pro</Badge>}
                       </InlineStack>
-                      {isGrowthPlus ? (
+                      {isPro ? (
                         <InlineStack gap="300" blockAlign="center">
                           <input
                             type="color"
@@ -380,7 +376,7 @@ export default function SettingsPage() {
                           <span style={{ fontSize: 14, fontWeight: 700, color: widgetTitleColor }}>Frequently bought together</span>
                         </InlineStack>
                       ) : (
-                        <LockedNote label="Custom widget title color" plan="Growth" />
+                        <LockedNote label="Custom widget title color" plan="Pro" />
                       )}
                     </BlockStack>
 
@@ -405,13 +401,13 @@ export default function SettingsPage() {
                       )}
                     </BlockStack>
 
-                    {/* Card background color — Growth+ */}
+                    {/* Card background color — Pro */}
                     <BlockStack gap="200">
                       <InlineStack gap="200" blockAlign="center">
                         <Text as="p" variant="bodyMd">Card background color</Text>
-                        {!isGrowthPlus && <Badge tone="warning">Growth+</Badge>}
+                        {!isPro && <Badge tone="info">Pro</Badge>}
                       </InlineStack>
-                      {isGrowthPlus ? (
+                      {isPro ? (
                         <InlineStack gap="300" blockAlign="center">
                           <input
                             type="color"
@@ -425,7 +421,7 @@ export default function SettingsPage() {
                           </div>
                         </InlineStack>
                       ) : (
-                        <LockedNote label="Custom card background" plan="Growth" />
+                        <LockedNote label="Custom card background" plan="Pro" />
                       )}
                     </BlockStack>
 

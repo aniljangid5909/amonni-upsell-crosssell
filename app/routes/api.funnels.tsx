@@ -123,41 +123,30 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     if (result.length >= 10) break;
   }
 
-  // Only Pro plan can hide the branding; all other plans always show it
-  const showPoweredBy = plan === 'pro' ? (shopSettings?.showPoweredBy ?? true) : true;
-  const isGrowthPlus = plan === 'growth' || plan === 'pro';
+  // All color customization is Pro-only. Non-Pro plans always get defaults.
   const isPro = plan === 'pro';
-  const buttonColor = isGrowthPlus ? (shopSettings?.buttonColor ?? '#1a1a1a') : '#1a1a1a';
+  const showPoweredBy = isPro ? (shopSettings?.showPoweredBy ?? true) : true;
+  const buttonColor = isPro ? (shopSettings?.buttonColor ?? '#1a1a1a') : '#1a1a1a';
   const buttonTextColor = isPro ? (shopSettings?.buttonTextColor ?? '#ffffff') : '#ffffff';
   const widgetBgColor = isPro ? (shopSettings?.widgetBgColor ?? '#ffffff') : '#ffffff';
-  const widgetTitleColor = isGrowthPlus ? (shopSettings?.widgetTitleColor ?? '#1a1a1a') : '#1a1a1a';
-  const cardBgColor = isGrowthPlus ? ((shopSettings as any)?.cardBgColor ?? '#ffffff') : '#ffffff';
+  const widgetTitleColor = isPro ? (shopSettings?.widgetTitleColor ?? '#1a1a1a') : '#1a1a1a';
+  const cardBgColor = isPro ? ((shopSettings as any)?.cardBgColor ?? '#ffffff') : '#ffffff';
   const borderRadius = shopSettings?.borderRadius ?? 8;
 
-  // Detect plan change — if plan changed to a lower tier, reset ALL color customizations to defaults
-  if (shopSettings && (shopSettings as any).activePlan !== plan) {
-    const prevPlan = (shopSettings as any).activePlan || '';
-    const planRank: Record<string, number> = { '': 0, 'starter': 1, 'growth': 2, 'pro': 3 };
-    const wasDowngrade = (planRank[prevPlan] || 0) > (planRank[plan] || 0);
-    const resets: Record<string, any> = { activePlan: plan };
-
-    if (wasDowngrade) {
-      // Reset everything to defaults on any downgrade
-      resets.buttonColor = '#1a1a1a';
-      resets.buttonTextColor = '#ffffff';
-      resets.widgetBgColor = '#ffffff';
-      resets.widgetTitleColor = '#1a1a1a';
-      resets.cardBgColor = '#ffffff';
-      resets.accentColor = '#000000';
-      resets.showPoweredBy = true;
-      resets.animationStyle = 'slide';
-    }
-
-    updateShopSettings(shop, resets).catch(() => {});
-
-    // Also override return values immediately so widget gets defaults right away
-    if (wasDowngrade) {
-      Object.assign(shopSettings, resets);
+  // If not Pro and DB has non-default colors (leftover from Pro), reset them async
+  if (!isPro && shopSettings) {
+    const s = shopSettings as any;
+    const hasCustomColors =
+      s.buttonColor !== '#1a1a1a' || s.buttonTextColor !== '#ffffff' ||
+      s.widgetBgColor !== '#ffffff' || s.widgetTitleColor !== '#1a1a1a' ||
+      s.cardBgColor !== '#ffffff' || s.accentColor !== '#000000' ||
+      s.showPoweredBy !== true;
+    if (hasCustomColors) {
+      updateShopSettings(shop, {
+        buttonColor: '#1a1a1a', buttonTextColor: '#ffffff',
+        widgetBgColor: '#ffffff', widgetTitleColor: '#1a1a1a',
+        cardBgColor: '#ffffff', accentColor: '#000000', showPoweredBy: true,
+      }).catch(() => {});
     }
   }
 
