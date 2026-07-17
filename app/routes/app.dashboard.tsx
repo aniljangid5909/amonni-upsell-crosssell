@@ -447,6 +447,8 @@ export default function DashboardPage() {
           </BlockStack>
         </Box>
 
+        <Box paddingBlockEnd="800" />
+
       </BlockStack>
     </Page>
   );
