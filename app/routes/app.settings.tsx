@@ -117,88 +117,91 @@ const SAMPLE_PRODUCTS = [
 
 function CartDrawerPreview({ buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, borderRadius, showPoweredBy }: PreviewProps) {
   return (
-    <div style={{ border: "1px solid #e8e8e8", borderRadius: 12, overflow: "hidden", background: "#f9f9f9" }}>
+    <div style={{ fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", fontSize: 14, color: "#1a1a1a", lineHeight: 1.4 }}>
+    <div style={{ border: "1px solid #e8e8e8", borderRadius: 12, overflow: "hidden", background: "#ffffff" }}>
       {/* Cart items */}
-      <div style={{ padding: "12px 14px", borderBottom: "1px solid #e8e8e8" }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: "#333", marginBottom: 8 }}>Your cart (2)</div>
+      <div style={{ padding: "12px 14px", borderBottom: "1px solid #e8e8e8", background: "#fff" }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#333", marginBottom: 8, textDecoration: "none" }}>Your cart (2)</div>
         {["Blue Sneakers — $89.99", "White T-Shirt — $24.99"].map((item) => (
           <div key={item} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 5 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 6, background: "#e0e0e0", flexShrink: 0 }} />
-            <div style={{ fontSize: 11, color: "#555" }}>{item}</div>
+            <div style={{ width: 36, height: 36, borderRadius: 6, background: "#e8e8e8", flexShrink: 0 }} />
+            <span style={{ fontSize: 11, color: "#555", textDecoration: "none" }}>{item}</span>
           </div>
         ))}
       </div>
 
-      {/* Amoni cart widget — matches app-embed.liquid exactly */}
-      <div style={{ padding: "12px 14px", margin: "8px 0", borderTop: "1px solid #e8e8e8", borderBottom: "1px solid #e8e8e8", background: widgetBgColor }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: widgetTitleColor, marginBottom: 10 }}>Frequently bought together</div>
+      {/* Amoni widget */}
+      <div style={{ padding: "12px 14px", borderTop: "3px solid #f3f3f3", borderBottom: "3px solid #f3f3f3", background: widgetBgColor }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: widgetTitleColor, marginBottom: 10, textDecoration: "none" }}>Frequently bought together</div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           {SAMPLE_PRODUCTS.map((p) => (
             <div key={p.name} style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: "1px solid #e8e8e8", borderRadius, background: cardBgColor }}>
-              <div style={{ width: 52, height: 52, borderRadius: 8, background: "#ddd", flexShrink: 0 }} />
+              <div style={{ width: 52, height: 52, borderRadius: 8, background: "#e8e8e8", flexShrink: 0 }} />
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#1a1a1a", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.name}</div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a" }}>{p.price}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#1a1a1a", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", textDecoration: "none" }}>{p.name}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a", textDecoration: "none" }}>{p.price}</div>
               </div>
-              <button style={{ padding: "6px 12px", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontSize: 11, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}>Add</button>
+              <button style={{ padding: "6px 13px", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0, fontFamily: "inherit" }}>Add</button>
             </div>
           ))}
         </div>
         {showPoweredBy && (
           <div style={{ textAlign: "center", marginTop: 10, paddingTop: 8, borderTop: "1px solid #f0f0f0" }}>
-            <span style={{ fontSize: 10, color: "#ccc" }}>Powered by <strong style={{ color: "#bbb" }}>Amoni</strong></span>
+            <span style={{ fontSize: 10, color: "#bbb", textDecoration: "none" }}>Powered by <b style={{ color: "#aaa", fontWeight: 600 }}>Amoni</b></span>
           </div>
         )}
       </div>
 
-      {/* Cart footer */}
-      <div style={{ padding: "12px 14px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 12, color: "#333" }}>
-          <span>Subtotal</span><span style={{ fontWeight: 700 }}>$114.98</span>
+      {/* Footer */}
+      <div style={{ padding: "12px 14px", background: "#fff" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, fontSize: 13 }}>
+          <span style={{ color: "#555" }}>Subtotal</span><span style={{ fontWeight: 700, color: "#1a1a1a" }}>$114.98</span>
         </div>
-        <div style={{ background: "#1a1a1a", color: "#fff", padding: "9px 0", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight: 600 }}>Checkout</div>
+        <div style={{ background: "#1a1a1a", color: "#fff", padding: "10px 0", borderRadius: 8, textAlign: "center", fontSize: 13, fontWeight: 600 }}>Checkout</div>
       </div>
+    </div>
     </div>
   );
 }
 
 function ProductPagePreview({ buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, borderRadius, showPoweredBy }: PreviewProps) {
   return (
-    <div style={{ border: "1px solid #e8e8e8", borderRadius: 12, overflow: "hidden", background: "#f9f9f9" }}>
+    <div style={{ fontFamily: "-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif", fontSize: 14, color: "#1a1a1a", lineHeight: 1.4 }}>
+    <div style={{ border: "1px solid #e8e8e8", borderRadius: 12, overflow: "hidden", background: "#ffffff" }}>
       {/* Product header */}
-      <div style={{ padding: "12px 14px", borderBottom: "1px solid #e8e8e8", display: "flex", gap: 12, alignItems: "flex-start" }}>
-        <div style={{ width: 64, height: 64, borderRadius: 8, background: "#ddd", flexShrink: 0 }} />
+      <div style={{ padding: "14px", borderBottom: "1px solid #e8e8e8", background: "#fff", display: "flex", gap: 12, alignItems: "flex-start" }}>
+        <div style={{ width: 68, height: 68, borderRadius: 10, background: "#e8e8e8", flexShrink: 0 }} />
         <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: "#1a1a1a", marginBottom: 3 }}>Blue Sneakers</div>
-          <div style={{ fontSize: 12, color: "#555", marginBottom: 8 }}>$89.99</div>
-          <div style={{ background: "#1a1a1a", color: "#fff", padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, display: "inline-block" }}>Add to cart</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#1a1a1a", marginBottom: 3, textDecoration: "none" }}>Blue Sneakers</div>
+          <div style={{ fontSize: 13, color: "#555", marginBottom: 10, textDecoration: "none" }}>$89.99</div>
+          <div style={{ background: "#1a1a1a", color: "#fff", padding: "7px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600, display: "inline-block" }}>Add to cart</div>
         </div>
       </div>
 
-      {/* Amoni product widget — matches product-widget.js cross-sell/upsell carousel exactly */}
-      <div style={{ padding: "14px", background: widgetBgColor, borderTop: "1px solid #e8e8e8", borderBottom: "1px solid #e8e8e8", margin: "8px 0" }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: widgetTitleColor, marginBottom: 4 }}>You might also like</div>
-        <div style={{ display: "inline-block", background: "#fff3cd", color: "#856404", fontSize: 11, fontWeight: 600, borderRadius: 6, padding: "2px 8px", marginBottom: 10 }}>Grab products at 20% Off!</div>
-        {/* Carousel: horizontal scroll of vertical cards */}
-        <div style={{ display: "flex", gap: 10, overflowX: "auto", scrollbarWidth: "none" }}>
+      {/* Amoni widget */}
+      <div style={{ padding: "14px", background: widgetBgColor, borderTop: "3px solid #f3f3f3", borderBottom: "3px solid #f3f3f3" }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: widgetTitleColor, marginBottom: 6, textDecoration: "none" }}>You might also like</div>
+        <div style={{ display: "inline-block", background: "#fff3cd", color: "#856404", fontSize: 11, fontWeight: 600, borderRadius: 6, padding: "3px 10px", marginBottom: 10 }}>Grab products at 20% Off!</div>
+        <div style={{ display: "flex", gap: 10, overflowX: "auto" }}>
           {SAMPLE_PRODUCTS.map((p) => (
-            <div key={p.name} style={{ border: "1px solid #e8e8e8", borderRadius: 12, padding: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: cardBgColor, minWidth: 120, flexShrink: 0 }}>
-              <div style={{ width: 72, height: 72, borderRadius: 8, background: "#ddd" }} />
-              <div style={{ fontSize: 11, fontWeight: 600, color: "#1a1a1a", textAlign: "center", lineHeight: 1.3 }}>{p.name}</div>
-              <div style={{ fontSize: 11, textAlign: "center" }}>
-                <span style={{ fontWeight: 700, color: "#1a1a1a" }}>{p.price}</span>
+            <div key={p.name} style={{ border: "1px solid #e8e8e8", borderRadius: 12, padding: 10, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, background: cardBgColor, minWidth: 115, flexShrink: 0 }}>
+              <div style={{ width: 70, height: 70, borderRadius: 8, background: "#e8e8e8" }} />
+              <div style={{ fontSize: 11, fontWeight: 600, color: "#1a1a1a", textAlign: "center", lineHeight: 1.3, textDecoration: "none" }}>{p.name}</div>
+              <div style={{ textAlign: "center" }}>
+                <span style={{ fontSize: 12, fontWeight: 700, color: "#1a1a1a" }}>{p.price}</span>
                 {" "}<span style={{ fontSize: 10, background: "#ffe5e5", color: "#c0392b", borderRadius: 4, padding: "1px 4px", fontWeight: 600 }}>-20%</span>
               </div>
-              <button style={{ padding: "5px 14px", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>Add</button>
+              <button style={{ padding: "5px 14px", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Add</button>
             </div>
           ))}
         </div>
         {showPoweredBy && (
           <div style={{ textAlign: "center", marginTop: 10, paddingTop: 8, borderTop: "1px solid #f0f0f0" }}>
-            <span style={{ fontSize: 10, color: "#ccc" }}>Powered by <strong style={{ color: "#bbb" }}>Amoni</strong></span>
+            <span style={{ fontSize: 10, color: "#bbb", textDecoration: "none" }}>Powered by <b style={{ color: "#aaa", fontWeight: 600 }}>Amoni</b></span>
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 }
