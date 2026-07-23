@@ -9,6 +9,11 @@ import {
   Text,
   Badge,
 } from "@shopify/polaris";
+import { json } from "@remix-run/node";
+import type { LoaderFunctionArgs } from "@remix-run/node";
+import { useLoaderData } from "@remix-run/react";
+import { authenticate } from "../shopify.server";
+import { getShopSettings } from "../settings.server";
 import {
   PRODUCTS,
   PP_OFFER,
@@ -23,6 +28,20 @@ import {
   type Product,
 } from "../data/products";
 import "../styles/storefront-preview.css";
+
+export const loader = async ({ request }: LoaderFunctionArgs) => {
+  const { session } = await authenticate.admin(request);
+  const settings = await getShopSettings(session.shop);
+  return json({
+    buttonColor: (settings as any).buttonColor ?? "#1a1a1a",
+    buttonTextColor: (settings as any).buttonTextColor ?? "#ffffff",
+    widgetBgColor: (settings as any).widgetBgColor ?? "#ffffff",
+    widgetTitleColor: (settings as any).widgetTitleColor ?? "#1a1a1a",
+    cardBgColor: (settings as any).cardBgColor ?? "#ffffff",
+    borderRadius: settings.borderRadius ?? 8,
+    showPoweredBy: settings.showPoweredBy ?? true,
+  });
+};
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type Tab = "post-purchase" | "cart" | "product" | "checkout";
@@ -205,9 +224,16 @@ interface CDWProps {
   disc: Disc;
   state: "idle" | "accepted";
   onAccept: () => void;
+  buttonColor: string;
+  buttonTextColor: string;
+  widgetBgColor: string;
+  widgetTitleColor: string;
+  cardBgColor: string;
+  borderRadius: number;
+  showPoweredBy: boolean;
 }
 
-function CartDrawerWidget({ offer, disc, state, onAccept }: CDWProps) {
+function CartDrawerWidget({ offer, disc, state, onAccept, buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, borderRadius, showPoweredBy }: CDWProps) {
   const salePrice = discountedPrice(offer.price, disc);
   const cartItems = [
     { product: PRODUCTS[0], qty: 1, price: PRODUCTS[0].price },
@@ -235,14 +261,14 @@ function CartDrawerWidget({ offer, disc, state, onAccept }: CDWProps) {
         ))}
       </div>
 
-      {/* Add-on block */}
-      <div className="cdw-addon">
-        <div className="cdw-addon-label">Complete your routine</div>
-        <div className="cdw-addon-row">
+      {/* Add-on block — uses user's widget settings */}
+      <div style={{ margin: "0 16px 14px", border: "1px solid #e8e8e8", borderRadius, padding: 12, background: widgetBgColor }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: widgetTitleColor, marginBottom: 10 }}>Complete your routine</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 10, border: "1px solid #e8e8e8", borderRadius, background: cardBgColor }}>
           <Thumb product={offer} size={44} />
-          <div className="cdw-addon-info">
-            <div className="cdw-addon-name">{offer.name}</div>
-            <div className="cdw-addon-price">
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "#111" }}>{offer.name}</div>
+            <div style={{ fontSize: 12, color: "#555" }}>
               {fmt(salePrice)}{" "}
               <span style={{ textDecoration: "line-through", color: "#ccc" }}>
                 {fmt(offer.price)}
@@ -250,12 +276,15 @@ function CartDrawerWidget({ offer, disc, state, onAccept }: CDWProps) {
             </div>
           </div>
           <button
-            className={`cdw-add-btn${state === "accepted" ? " added" : ""}`}
+            style={{ padding: "7px 14px", borderRadius, border: "none", background: state === "accepted" ? "#22c55e" : buttonColor, color: buttonTextColor, fontSize: 12, fontWeight: 600, cursor: "pointer", flexShrink: 0 }}
             onClick={state === "idle" ? onAccept : undefined}
           >
             {state === "accepted" ? "✓" : "Add"}
           </button>
         </div>
+        {showPoweredBy && (
+          <div style={{ textAlign: "center", marginTop: 8, fontSize: 10, color: "#bbb" }}>Powered by <b style={{ color: "#aaa" }}>Amoni</b></div>
+        )}
       </div>
 
       <button className="cdw-checkout">Checkout · {fmt(checkoutTotal)}</button>
@@ -270,9 +299,16 @@ interface PPGWProps {
   disc: Disc;
   accepted: string[];
   onToggle: (id: string) => void;
+  buttonColor: string;
+  buttonTextColor: string;
+  widgetBgColor: string;
+  widgetTitleColor: string;
+  cardBgColor: string;
+  borderRadius: number;
+  showPoweredBy: boolean;
 }
 
-function ProductPageWidget({ trigger, offers, disc, accepted, onToggle }: PPGWProps) {
+function ProductPageWidget({ trigger, offers, disc, accepted, onToggle, buttonColor, buttonTextColor, widgetBgColor, widgetTitleColor, cardBgColor, borderRadius, showPoweredBy }: PPGWProps) {
   const allProducts = [trigger, ...offers];
 
   // Compute running total: trigger always included, others if accepted
@@ -285,9 +321,9 @@ function ProductPageWidget({ trigger, offers, disc, accepted, onToggle }: PPGWPr
   const acceptedCount = accepted.length + 1; // trigger always included
 
   return (
-    <div className="ppgw">
+    <div className="ppgw" style={{ background: widgetBgColor }}>
       <div className="ppgw-header">
-        <div className="ppgw-title">Frequently bought together</div>
+        <div className="ppgw-title" style={{ color: widgetTitleColor }}>Frequently bought together</div>
         <div className="ppgw-sub">Save {disc.value}% when added as a bundle</div>
       </div>
 
@@ -321,7 +357,7 @@ function ProductPageWidget({ trigger, offers, disc, accepted, onToggle }: PPGWPr
             : "ppgw-checkbox";
 
           return (
-            <div key={p.id} className="ppgw-item-row">
+            <div key={p.id} className="ppgw-item-row" style={{ background: cardBgColor, borderRadius: 8, marginBottom: 4, padding: "6px 8px" }}>
               <div
                 className={checkboxClass}
                 onClick={isTriger ? undefined : () => onToggle(p.id)}
@@ -353,7 +389,10 @@ function ProductPageWidget({ trigger, offers, disc, accepted, onToggle }: PPGWPr
         <span className="ppgw-total-label">Bundle total</span>
         <span className="ppgw-total-price">{fmt(total)}</span>
       </div>
-      <button className="w-btn-primary">Add {acceptedCount} to cart</button>
+      <button style={{ width: "100%", padding: "12px 0", borderRadius, border: "none", background: buttonColor, color: buttonTextColor, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Add {acceptedCount} to cart</button>
+      {showPoweredBy && (
+        <div style={{ textAlign: "center", marginTop: 8, fontSize: 10, color: "#bbb" }}>Powered by <b style={{ color: "#aaa" }}>Amoni</b></div>
+      )}
     </div>
   );
 }
@@ -540,6 +579,7 @@ const BANNER_TEXT: Record<Tab, string> = {
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function StorefrontPreview() {
+  const settings = useLoaderData<typeof loader>();
   const [tab, setTab] = useState<Tab>("post-purchase");
   const [ppStyle, setPpStyle] = useState<PPStyle>("classic");
   const [ppState, setPpState] = useState<State>("idle");
@@ -650,6 +690,13 @@ export default function StorefrontPreview() {
                   disc={CART_DISC}
                   state={cartState}
                   onAccept={() => setCartState("accepted")}
+                  buttonColor={settings.buttonColor}
+                  buttonTextColor={settings.buttonTextColor}
+                  widgetBgColor={settings.widgetBgColor}
+                  widgetTitleColor={settings.widgetTitleColor}
+                  cardBgColor={settings.cardBgColor}
+                  borderRadius={settings.borderRadius}
+                  showPoweredBy={settings.showPoweredBy}
                 />
               )}
 
@@ -660,6 +707,13 @@ export default function StorefrontPreview() {
                   disc={PP_DISC}
                   accepted={bundleAccepted}
                   onToggle={toggleBundle}
+                  buttonColor={settings.buttonColor}
+                  buttonTextColor={settings.buttonTextColor}
+                  widgetBgColor={settings.widgetBgColor}
+                  widgetTitleColor={settings.widgetTitleColor}
+                  cardBgColor={settings.cardBgColor}
+                  borderRadius={settings.borderRadius}
+                  showPoweredBy={settings.showPoweredBy}
                 />
               )}
 
