@@ -6,7 +6,7 @@ import {
   Banner, BlockStack, InlineStack, ProgressBar, Box,
 } from "@shopify/polaris";
 import { authenticate, prisma } from "../shopify.server";
-import { getCurrentPlan, getMonthlyImpressions, PLAN_LIMITS } from "../plan.server";
+import { getCurrentPlan, getMonthlyImpressions, PLAN_LIMITS, enforceFunnelLimit } from "../plan.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
@@ -14,15 +14,19 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
   const shop = url.searchParams.get("shop") ?? session.shop;
   const host = url.searchParams.get("host") ?? "";
 
-  const [plan, monthlyImpressions, funnels] = await Promise.all([
+  const [plan, monthlyImpressions] = await Promise.all([
     getCurrentPlan(admin, session.shop),
     getMonthlyImpressions(session.shop),
-    prisma.funnel.findMany({
-      where: { shop: session.shop },
-      orderBy: { createdAt: "desc" },
-      include: { impressions: { select: { eventType: true } } },
-    }),
   ]);
+
+  // Deactivate excess funnels if merchant downgraded
+  await enforceFunnelLimit(session.shop, plan);
+
+  const funnels = await prisma.funnel.findMany({
+    where: { shop: session.shop },
+    orderBy: { createdAt: "desc" },
+    include: { impressions: { select: { eventType: true } } },
+  });
 
   const rawLimits = PLAN_LIMITS[plan];
   const limits = {

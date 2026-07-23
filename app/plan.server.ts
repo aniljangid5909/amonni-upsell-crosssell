@@ -147,6 +147,31 @@ export async function getCurrentPlanByToken(shop: string): Promise<PlanId> {
   return plan;
 }
 
+/**
+ * Deactivates excess active funnels so the count matches the plan limit.
+ * Keeps the most recently created funnels active; deactivates the oldest extras.
+ * No-op when the plan has unlimited funnels.
+ */
+export async function enforceFunnelLimit(shop: string, plan: PlanId): Promise<void> {
+  const max = PLAN_LIMITS[plan].maxFunnels;
+  if (!isFinite(max)) return;
+
+  const activeFunnels = await prisma.funnel.findMany({
+    where: { shop, status: "active" },
+    orderBy: { createdAt: "desc" }, // newest first
+    select: { id: true },
+  });
+
+  if (activeFunnels.length <= max) return;
+
+  // Keep the first `max` (newest), deactivate the rest
+  const toDeactivate = activeFunnels.slice(max).map((f) => f.id);
+  await prisma.funnel.updateMany({
+    where: { id: { in: toDeactivate }, shop },
+    data: { status: "paused" },
+  });
+}
+
 /** Counts impressions this calendar month for a shop */
 export async function getMonthlyImpressions(shop: string): Promise<number> {
   const start = new Date();
